@@ -1,12 +1,16 @@
 module DateExpr
   ( BoolExpr
-  , IntExpr
+  , parseBoolExpr
+  , firstMatchingDay
+  , evalBoolExpr
   ) where
 
+import Data.List
 import Data.Time.Calendar
 import Data.Time.Calendar.WeekDate
 import Data.Time.Calendar.MonthDay
 import Data.Time.Calendar.Easter
+import Text.Parsec
 
 data BoolExpr = BValue Bool
               | BStatement DateStatement
@@ -36,6 +40,13 @@ data SpecialDate = SJulianDay
                  | SYearCount
                  | SMonthCount
                  | SEaster
+
+{-
+ - Evaluating expressions
+ -}
+
+firstMatchingDay :: BoolExpr -> Int -> Day -> Maybe Day
+firstMatchingDay expr duration = find (evalBoolExpr expr) . take duration . iterate (addDays 1)
 
 evalBoolExpr :: BoolExpr -> Day -> Bool
 evalBoolExpr (BValue v)     _ = v
@@ -71,6 +82,10 @@ evalSpecialDate SYearCount  d = ((yearday d - 1) `div` 7) + 1
 evalSpecialDate SMonthCount d = ((day d - 1) `div` 7) + 1
 evalSpecialDate SEaster     d = diffDays d $ orthodoxEaster $ year d
 
+{-
+ - Helper functions for evaluation
+ -}
+
 julian :: Day -> Integer
 julian = flip diffDays (fromGregorian 1858 11 17)
 
@@ -90,3 +105,10 @@ yearday :: Day -> Integer
 yearday day = let (y,m,d)   = toGregorian day
                   dayofyear = monthAndDayToDayOfYear (isLeapYear y) m d
               in  toInteger dayofyear
+
+{-
+ - Parsing BoolExpr
+ -}
+
+parseBoolExpr :: String -> Either ParseError BoolExpr
+parseBoolExpr = undefined
