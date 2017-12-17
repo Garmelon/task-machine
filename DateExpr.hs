@@ -3,6 +3,8 @@ module DateExpr
   , parseDateExpr
   , firstMatchingDay
   , evalDateExpr
+  , daily
+  , weekly
   ) where
 
 import Control.Applicative
@@ -23,7 +25,6 @@ type DateExpr = BoolExpr
 
 data BoolExpr = BValue Bool
               | BStatement DateStatement
-              | BLeapYear
               | BNot BoolExpr
               | BAnd BoolExpr BoolExpr
               | BOr BoolExpr BoolExpr
@@ -54,6 +55,12 @@ data SpecialDate = SJulianDay
                  | SMonthCount
                  | SEaster
   deriving (Show)
+
+daily :: DateExpr
+daily = BValue True
+
+weekly :: DateExpr
+weekly = BEq (IDate SDayOfWeek) (IValue 7)
 
 {-
  - Evaluating expressions
@@ -136,7 +143,6 @@ yearday day = let (y,m,d)   = toGregorian day
  - Parsing Expressions
  -}
 
---               error ↓   ↓ input
 type Parser = Parsec Void String
 
 parseDateExpr :: Parser DateExpr
@@ -144,7 +150,7 @@ parseDateExpr = boolExpr
 
 -- Lexeme parser functions
 sc :: Parser ()
-sc = L.space space1 empty empty
+sc = L.space space1 (L.skipLineComment "//") (L.skipBlockCommentNested "/*" "*/")
 
 symbol :: String -> Parser String
 symbol = L.symbol sc
