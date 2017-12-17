@@ -133,7 +133,7 @@ yearday day = let (y,m,d)   = toGregorian day
               in  toInteger dayofyear
 
 {-
- - Parsing DateExpr
+ - Parsing Expressions
  -}
 
 --               error ↓   ↓ input
@@ -142,7 +142,8 @@ type Parser = Parsec Void String
 parseDateExpr :: Parser DateExpr
 parseDateExpr = boolExpr
 
-sc :: Parser () -- oddly necessary
+-- Lexeme parser functions
+sc :: Parser ()
 sc = L.space space1 empty empty
 
 symbol :: String -> Parser String
@@ -160,11 +161,11 @@ integer = lexeme L.decimal
 bool :: Parser Bool
 bool = (True <$ symbol "true") <|> (False <$ symbol "false")
 
--- helper functions for creating tables
+-- Helper functions for creating tables
 prefix name f = Prefix (f <$ symbol name)
 infixL name f = InfixL (f <$ symbol name)
 
--- parse IntExpr
+-- Parse IntExpr
 intExpr :: Parser IntExpr
 intExpr = makeExprParser intTerm intTable
 
@@ -180,7 +181,7 @@ intTerm =   parens intExpr
         <|> IDate <$> pSpecialDate
         <?> "integer expression"
 
--- parse BoolExpr
+-- Parse BoolExpr
 boolExpr :: Parser BoolExpr
 boolExpr = makeExprParser boolTerm boolTable
 
@@ -195,32 +196,37 @@ boolTerm =   parens boolExpr
          <|> BStatement <$> pDateStatement
          <|> relExpr
          <?> "boolean expression"
-  -- comparison (==, <, >, <=, >=)
 
+relExpr :: Parser BoolExpr
 relExpr = do
   a <- intExpr
   b <- relation
   c <- intExpr
   return $ b a c
 
+relation :: Parser (IntExpr -> IntExpr -> BoolExpr)
 relation =   (BEq <$ symbol "==")
          <|> ((\a b -> BNot (BEq a b)) <$ symbol "!=")
          <|> ((\a b -> BNot (BLt a b)) <$ symbol ">=")
          <|> ((\a b -> BNot (BGt a b)) <$ symbol "<=")
          <|> (BGt <$ symbol ">")
          <|> (BLt <$ symbol "<")
+         <?> "comparison"
 
+-- Parse SpecialDates and DateStatements
+pSpecialDate :: Parser SpecialDate
 pSpecialDate =   (SJulianDay  <$ symbol "julian")
-             <|> (SDayOfYear  <$ symbol "yearday")
              <|> (SYearCount  <$ symbol "yearcount")
+             <|> (SDayOfYear  <$ symbol "yearday")
              <|> (SYear       <$ symbol "year")
              <|> (SMonthCount <$ symbol "monthcount")
              <|> (SMonth      <$ symbol "month")
              <|> (SDay        <$ symbol "day")
              <|> (SDayOfWeek  <$ symbol "weekday")
              <|> (SEaster     <$ symbol "easter")
-             <?> "special date" -- necessary?
+             <?> "special date"
 
+pDateStatement :: Parser DateStatement
 pDateStatement =   (IsWeekend  <$ symbol "isweekend")
                <|> (IsLeapYear <$ symbol "isleapyear")
-               <?> "date statement" -- necessary?
+               <?> "date statement"
