@@ -46,7 +46,7 @@ integer :: (Integral i) => Parser i
 integer = lexeme L.decimal
 
 options :: (a -> Parser a) -> [a] -> Parser a
-options f = foldr1 (<|>) . map f
+options f = choice . map f
 
 pDateIso :: Parser Day
 pDateIso = do
@@ -82,13 +82,16 @@ pWhenever = symbol "whenever" *> parseDateExpr
 pWhenShortcut :: Parser When
 pWhenShortcut =   Whenever 1 daily  <$ symbol "daily"
               <|> Whenever 7 weekly <$ symbol "weekly"
+              <?> "when"
 
 pWhen :: Parser When
-pWhen = pWhenShortcut
+pWhen =   pWhenShortcut
       <|> liftA Until pUntil
       <|> try (liftA2 During pDuration pUntil)
-      <|> liftA2 Whenever pDuration pWhenever
-      <|> return Forever
+      <|> try (liftA2 Whenever pDuration pWhenever)
+      <|> liftA2 Whenever (return 1) pWhenever
+     -- <|> return Forever
+      <?> "when"
 
 pPriority :: Parser Priority
 pPriority =   Must   <$ symbol "must"
@@ -99,12 +102,18 @@ pAmount :: Parser Amount
 pAmount =   1 <$ symbol "once"
         <|> 2 <$ symbol "twice"
         <|> integer <* (symbol "times" <|> symbol "time")
+        <?> "amount"
 
 pDesc :: Parser Description
-pDesc = between (symbol "<") (symbol ">")
-      $ takeWhile1P (Just "description") (not . (`elem` "<>"))
+-- pDesc = between (symbol "<") (symbol ">")
+--       $ takeWhile1P (Just "description") (not . (`elem` "<>"))
+pDesc = someTill anyChar (try $ lookAhead pAmountOrWhen) <* sc
+  where pAmountOrWhen =   try (sc <* pAmount)
+                      <|> sc <* pWhen
 
 parseTask :: Parser Task
 -- because liftA only goes up to liftA3
 parseTask =   try (liftM4 Task pPriority pDesc pAmount pWhen)
-          <|> liftM4 Task pPriority pDesc (return 1) pWhen
+          <|> try (liftM4 Task pPriority pDesc (return 1) pWhen)
+          <|> try (liftM4 Task pPriority pDesc pAmount (return Forever))
+          <|> liftM4 Task pPriority (some anyChar) (return 1) (return Forever)
