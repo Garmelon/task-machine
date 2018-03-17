@@ -1,6 +1,8 @@
 module Main where
 
-import Lib
+import qualified Database.SQLite.Simple as DB
+
+import qualified TaskMachine.Database as TMB
 
 main :: IO ()
-main = someFunc
+main = DB.withConnection "test.db" TMB.initializeNewDB
