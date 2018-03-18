@@ -12,28 +12,28 @@ import qualified Options.Applicative as O
 import qualified TaskMachine.UI      as TM
 
 data Options = Options
-  { oExportDefaultTheme :: [String]
-  , oThemePaths         :: [FilePath]
+  { oThemePaths         :: [FilePath]
+  , oExportDefaultTheme :: [String]
   } deriving (Show)
 
 argParser :: O.Parser Options
 argParser = pure Options
-  <*> many exportDefaultTheme
   <*> many themePaths
+  <*> many exportDefaultTheme
   where
+    themePaths = O.strOption $ mconcat
+      [ O.short 't'
+      , O.long "theme"
+      , O.help "Specify one or more theme files to load.\
+               \ This flag can be set zero or more times."
+      , O.metavar "THEMEFILE"
+      ]
     exportDefaultTheme = O.strOption $ mconcat
       [ O.short 'T'
       , O.long "export-default-theme"
       , O.help "Export the application's default theme to a file.\
                \ This can be used as a starting point for a custom theme."
       , O.metavar "THEMEFILE"
-      ]
-    themePaths = O.strOption $ mconcat
-      [ O.short 't'
-      , O.long "theme"
-      , O.help "Specify one or more theme files to load.\
-               \ This flag can be set zero or more times."
-      , O.metavar "THEME"
       ]
 
 argParserInfo :: O.ParserInfo Options
