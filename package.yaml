@@ -24,6 +24,7 @@ dependencies:
 - sqlite-simple
 - brick
 - vty
+- optparse-applicative
   #- containers
   #- unordered-containers
   #- text
