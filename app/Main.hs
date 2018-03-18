@@ -9,21 +9,10 @@ module Main where
 import           Control.Monad
 import           Data.Monoid
 
-import qualified Brick         as B
-import qualified Graphics.Vty  as VTY
+import qualified Brick          as B
+import qualified Brick.Themes   as B
 
-myAttrMap :: B.AttrMap
-myAttrMap = B.attrMap VTY.defAttr
-  [ ("taskList"                 <> "normal",    withStyle VTY.bold $ B.fg VTY.cyan)
-  , ("taskList"                 <> "highlight", withStyle VTY.bold $ B.bg VTY.cyan)
-  , ("taskList" <> "urgent"     <> "normal",    withStyle VTY.bold $ B.fg VTY.yellow)
-  , ("taskList" <> "urgent"     <> "highlight", withStyle VTY.bold $ B.bg VTY.yellow)
-  , ("taskList" <> "veryUrgent" <> "normal",    withStyle VTY.bold $ B.fg VTY.red)
-  , ("taskList" <> "veryUrgent" <> "highlight", withStyle VTY.bold $ B.bg VTY.red)
-  , ("taskList" <> "overdue"    <> "normal",    withStyle VTY.bold $ B.fg VTY.magenta)
-  , ("taskList" <> "overdue"    <> "highlight", withStyle VTY.bold $ B.bg VTY.magenta)
-  ]
-  where withStyle = flip VTY.withStyle
+import qualified TaskMachine.UI as TM
 
 data ResourceName = Asdf
   deriving (Eq, Ord)
@@ -34,7 +23,7 @@ myApp = B.App
   , B.appHandleEvent  = B.resizeOrQuit
   , B.appStartEvent   = \s -> return s
   , B.appChooseCursor = B.neverShowCursor
-  , B.appAttrMap      = \_ -> myAttrMap
+  , B.appAttrMap      = const $ B.themeToAttrMap TM.defaultTheme
   }
   where
     myTestWidget = normal B.<=> urgent B.<=> veryUrgent B.<=> overdue
