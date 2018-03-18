@@ -22,6 +22,8 @@ description:         Please see the README on Github at <https://github.com/Garm
 dependencies:
 - base >= 4.7 && < 5
 - sqlite-simple
+- brick
+- vty
   #- containers
   #- unordered-containers
   #- text
@@ -32,7 +34,6 @@ dependencies:
   #- bytestring
   #- stm
   #- megaparsec
-  #- brick
 
 library:
   source-dirs: src
