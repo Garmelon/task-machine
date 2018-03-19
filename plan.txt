@@ -1,0 +1,12 @@
+Starting the program
+ - read command line options
+ - export default config
+ - export default theme
+ - load config file, looking in default places if no -c flag set
+ - merge loaded config with options (options take priority)
+ - open db and make sure the correct tables exist (CREATE TABLE IF EXISTS)
+  (- possibly import from old table versions)
+ - launch actual program
+
+Actual program
+ - print all entries in db for debugging
