@@ -12,15 +12,35 @@ import qualified Options.Applicative as O
 import qualified TaskMachine.UI      as TM
 
 data Options = Options
-  { oThemePaths         :: [FilePath]
-  , oExportDefaultTheme :: [String]
+  { oConfigFile         :: FilePath
+  , oTaskDB             :: FilePath
+  , oThemePaths         :: [FilePath]
+  , oExportDefaultTheme :: [FilePath]
   } deriving (Show)
 
 argParser :: O.Parser Options
 argParser = pure Options
+  <*> configFile
+  <*> taskDB
   <*> many themePaths
   <*> many exportDefaultTheme
   where
+    configFile = O.strOption $ mconcat
+      [ O.short 'c'
+      , O.long "config"
+      , O.help "Specify the config file to be loaded."
+      , O.value "tasks.config"
+      , O.showDefault
+      , O.metavar "CONFIGFILE"
+      ]
+    taskDB = O.strOption $ mconcat
+      [ O.short 'd'
+      , O.long "task-db"
+      , O.help "Specify the database file where the tasks are saved."
+      , O.value "tasks.db"
+      , O.showDefault
+      , O.metavar "TASKDB"
+      ]
     themePaths = O.strOption $ mconcat
       [ O.short 't'
       , O.long "theme"
@@ -37,39 +57,48 @@ argParser = pure Options
       ]
 
 argParserInfo :: O.ParserInfo Options
-argParserInfo = O.info (O.helper <*> argParser) mempty
+argParserInfo = O.info (O.helper <*> argParser) $ mconcat
+  [ O.fullDesc
+  ]
 
 -- Log an action (prefixes "-> ")
 action :: String -> IO ()
 action = putStrLn . ("-> " ++)
 
 -- Could probably implement using EitherT, but too lazy :)
-loadThemes :: B.Theme -> [FilePath] -> IO (Either String B.Theme)
-loadThemes theme [] = return $ Right theme
+loadThemes :: B.Theme -> [FilePath] -> IO B.Theme
+loadThemes theme [] = return theme
 loadThemes theme (path:paths) = do
   action $ "Loading theme " ++ show path ++ "."
   eModifiedTheme <- B.loadCustomizations path theme
   case eModifiedTheme of
-    Left e  -> return $ Left e
-    Right t -> loadThemes t paths
+    Left errMsg         -> die errMsg
+    Right modifiedTheme -> loadThemes modifiedTheme paths
 
 main :: IO ()
 main = do
   options <- O.execParser argParserInfo
 
   -- Good ol' debug print
-  if False then putStrLn "- The Options -" >> (putStrLn $ show options) else return ()
+  when True $ do
+      putStrLn "- The Options -"
+      print options
+      putStrLn "- The End -"
+      putStrLn ""
 
-  -- Exporting default theme
+  -- Export default theme
   forM_ (oExportDefaultTheme options) $ \path -> do
     action $ "Exporting default theme to " ++ show path ++ "."
     B.saveTheme path TM.defaultTheme
 
-  -- Loading themes and running the program
-  eTheme <- loadThemes TM.defaultTheme $ oThemePaths options
-  case eTheme of
-    Left errMsg -> die errMsg
-    Right theme -> error "Implement actual program logic" theme
+  -- Load config
+  -- TODO: Some config data type that contains the themes etc.
+
+  -- Load themes and connect to db
+  theme <- loadThemes TM.defaultTheme $ oThemePaths options
+
+  -- Running the program
+  error "Implement actual program logic" theme
 
 --import qualified Database.SQLite.Simple as DB
 --import qualified TaskMachine.Database as TMD
