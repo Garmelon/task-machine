@@ -1,24 +1,36 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module TaskMachine.UI
-  ( defaultTheme
-  ) where
+module TaskMachine.UI where
 
 import           Data.Monoid
 
-import qualified Brick        as B
-import qualified Brick.Themes as B
-import qualified Graphics.Vty as VTY
+import qualified Brick             as B
+import qualified Brick.Themes      as B
+import qualified Graphics.Vty      as VTY
+
+import qualified TaskMachine.Types as TM
 
 defaultTheme :: B.Theme
 defaultTheme = B.newTheme VTY.defAttr
-  [ ("taskList"                 <> "normal",    withStyle VTY.bold $ B.fg VTY.cyan)
-  , ("taskList"                 <> "highlight", withStyle VTY.bold $ B.bg VTY.cyan)
-  , ("taskList" <> "urgent"     <> "normal",    withStyle VTY.bold $ B.fg VTY.yellow)
-  , ("taskList" <> "urgent"     <> "highlight", withStyle VTY.bold $ B.bg VTY.yellow)
-  , ("taskList" <> "veryUrgent" <> "normal",    withStyle VTY.bold $ B.fg VTY.red)
-  , ("taskList" <> "veryUrgent" <> "highlight", withStyle VTY.bold $ B.bg VTY.red)
-  , ("taskList" <> "overdue"    <> "normal",    withStyle VTY.bold $ B.fg VTY.magenta)
-  , ("taskList" <> "overdue"    <> "highlight", withStyle VTY.bold $ B.bg VTY.magenta)
+  [ ("taskList" <> "normal",    withStyle VTY.bold $ B.fg VTY.cyan)
+  , ("taskList" <> "highlight",                      B.bg VTY.cyan)
   ]
   where withStyle = flip VTY.withStyle
+
+data ResourceName = Asdf
+  deriving (Eq, Ord)
+
+data State = State
+  { sConfig :: TM.Config
+  }
+
+myApp :: B.App () () ResourceName
+myApp = B.App
+  { B.appDraw         = \_ -> [myTestWidget]
+  , B.appHandleEvent  = B.resizeOrQuit
+  , B.appStartEvent   = \s -> return s
+  , B.appChooseCursor = B.neverShowCursor
+  , B.appAttrMap      = const $ B.themeToAttrMap defaultTheme
+  }
+  where
+    myTestWidget = B.withAttr ("taskList" <> "normal") (B.str "normal ") B.<+> B.withAttr ("taskList" <> "highlight") (B.str "style")

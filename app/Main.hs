@@ -8,36 +8,43 @@ import           System.Exit
 
 import qualified Brick.Themes        as B
 import qualified Options.Applicative as O
+import qualified Database.SQLite.Simple as DB
 
 import qualified TaskMachine.UI      as TM
+import qualified TaskMachine.Database as TM
 
+-- TODO: When adding oConfigFile back, make oTaskDB a Maybe FilePath.
+-- This way, it won't always overwrite the task db set in the config.
+-- TODO: Add a [-c|--export-default-config CONFIGFILE] option
+-- TODO: Add a [--initialize] flag to create a ~/.taskmachine/ folder and fill it with a default config and theme.
+-- TODO: Have a look at other programs to see how they deal with this issue.
 data Options = Options
-  { oConfigFile         :: FilePath
-  , oTaskDB             :: FilePath
+--  { oConfigFile         :: FilePath
+  { oTaskDB             :: FilePath
   , oThemePaths         :: [FilePath]
   , oExportDefaultTheme :: [FilePath]
   } deriving (Show)
 
 argParser :: O.Parser Options
 argParser = pure Options
-  <*> configFile
+--  <*> configFile
   <*> taskDB
   <*> many themePaths
   <*> many exportDefaultTheme
   where
-    configFile = O.strOption $ mconcat
-      [ O.short 'c'
-      , O.long "config"
-      , O.help "Specify the config file to be loaded."
-      , O.value "tasks.config"
-      , O.showDefault
-      , O.metavar "CONFIGFILE"
-      ]
+--    configFile = O.strOption $ mconcat
+--      [ O.short 'c'
+--      , O.long "config"
+--      , O.help "Specify the config file to be loaded."
+--      , O.value "tasks.config"
+--      , O.showDefault
+--      , O.metavar "CONFIGFILE"
+--      ]
     taskDB = O.strOption $ mconcat
       [ O.short 'd'
       , O.long "task-db"
       , O.help "Specify the database file where the tasks are saved."
-      , O.value "tasks.db"
+      , O.value "~/.taskmanager/tasks.db"
       , O.showDefault
       , O.metavar "TASKDB"
       ]
@@ -79,26 +86,28 @@ main :: IO ()
 main = do
   options <- O.execParser argParserInfo
 
-  -- Good ol' debug print
-  when True $ do
-      putStrLn "- The Options -"
-      print options
-      putStrLn "- The End -"
-      putStrLn ""
-
   -- Export default theme
   forM_ (oExportDefaultTheme options) $ \path -> do
     action $ "Exporting default theme to " ++ show path ++ "."
     B.saveTheme path TM.defaultTheme
 
-  -- Load config
-  -- TODO: Some config data type that contains the themes etc.
+  -- Export default config
+  -- TODO
 
-  -- Load themes and connect to db
+  -- Load config
+  -- TODO
+
+  -- Add command line options into config
+  -- TODO
+
+  -- According to config, load themes and connect to db
   theme <- loadThemes TM.defaultTheme $ oThemePaths options
 
-  -- Running the program
-  error "Implement actual program logic" theme
+  -- Do some debugging stuff or something
+  DB.withConnection "test.db" TM.initializeNewDB
+
+  -- Start the UI
+  error "Implement UI" theme
 
 --import qualified Database.SQLite.Simple as DB
 --import qualified TaskMachine.Database as TMD
