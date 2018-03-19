@@ -3,15 +3,20 @@
 module Main where
 
 import           Control.Applicative
+import           Control.Exception
 import           Control.Monad
+import           Data.List
 import           System.Exit
+import           System.IO.Error
 
-import qualified Brick.Themes        as B
-import qualified Options.Applicative as O
+import qualified Brick.Themes           as B
+import qualified Data.ConfigFile        as C
 import qualified Database.SQLite.Simple as DB
+import qualified Options.Applicative    as O
 
-import qualified TaskMachine.UI      as TM
-import qualified TaskMachine.Database as TM
+import qualified TaskMachine.Config     as TM
+import qualified TaskMachine.Database   as TM
+import qualified TaskMachine.UI         as TM
 
 -- TODO: When adding oConfigFile back, make oTaskDB a Maybe FilePath.
 -- This way, it won't always overwrite the task db set in the config.
@@ -19,41 +24,50 @@ import qualified TaskMachine.Database as TM
 -- TODO: Add a [--initialize] flag to create a ~/.taskmachine/ folder and fill it with a default config and theme.
 -- TODO: Have a look at other programs to see how they deal with this issue.
 data Options = Options
---  { oConfigFile         :: FilePath
-  { oTaskDB             :: FilePath
-  , oThemePaths         :: [FilePath]
-  , oExportDefaultTheme :: [FilePath]
+  { oConfigFile          :: [FilePath]
+  , oTaskDB              :: Maybe FilePath
+  , oThemePaths          :: [FilePath]
+  , oExportDefaultConfig :: [FilePath]
+  , oExportDefaultTheme  :: [FilePath]
   } deriving (Show)
 
 argParser :: O.Parser Options
 argParser = pure Options
---  <*> configFile
-  <*> taskDB
+  <*> ((++ TM.defaultConfigFilePaths) <$> many configFile)
+  <*> optional taskDB
   <*> many themePaths
+  <*> many exportDefaultConfig
   <*> many exportDefaultTheme
   where
---    configFile = O.strOption $ mconcat
---      [ O.short 'c'
---      , O.long "config"
---      , O.help "Specify the config file to be loaded."
---      , O.value "tasks.config"
---      , O.showDefault
---      , O.metavar "CONFIGFILE"
---      ]
+    configFile = O.strOption $ mconcat
+      [ O.short 'c'
+      , O.long "config"
+      , O.help $ "Where to look for a config file.\
+                 \ This option can be set multiple times.\
+                 \ If not specified, will look in these locations:\n"
+                 ++ intercalate "," (map show TM.defaultConfigFilePaths)
+      , O.metavar "CONFIGFILE"
+      ]
     taskDB = O.strOption $ mconcat
       [ O.short 'd'
       , O.long "task-db"
-      , O.help "Specify the database file where the tasks are saved."
-      , O.value "~/.taskmanager/tasks.db"
-      , O.showDefault
+      , O.help "Specify the database file where the tasks are saved.\
+               \ This option overwrites the config file."
       , O.metavar "TASKDB"
       ]
     themePaths = O.strOption $ mconcat
       [ O.short 't'
       , O.long "theme"
       , O.help "Specify one or more theme files to load.\
-               \ This flag can be set zero or more times."
+               \ This option can be set zero or more times.\
+               \ This option overwrites the config file."
       , O.metavar "THEMEFILE"
+      ]
+    exportDefaultConfig = O.strOption $ mconcat
+      [ O.short 'C'
+      , O.long "export-default-config"
+      , O.help "Export the application's default config to a file."
+      , O.metavar "CONFIGFILE"
       ]
     exportDefaultTheme = O.strOption $ mconcat
       [ O.short 'T'
@@ -72,6 +86,50 @@ argParserInfo = O.info (O.helper <*> argParser) $ mconcat
 action :: String -> IO ()
 action = putStrLn . ("-> " ++)
 
+-- Kinda ugly...
+loadConfigs :: [FilePath] -> IO (Maybe TM.Config)
+loadConfigs [] = return Nothing
+loadConfigs (path:paths) = do
+  action $ "Loading config from " ++ show path ++ "."
+  mConf <- tryLoadConfig path
+  case mConf of
+    Just conf -> return (Just conf)
+    Nothing -> do
+      putStrLn $ "Could not load config from " ++ show path ++ "."
+      loadConfigs paths
+  where
+    tryLoadConfig :: FilePath -> IO (Maybe TM.Config)
+    tryLoadConfig p = handleOpenFileExceptions
+                    $ handleCPException
+                    $ Just <$> TM.loadConfig p
+    handleCPException :: IO (Maybe a) -> IO (Maybe a)
+    handleCPException f = do
+      res <- try f
+      case res of
+        Right m                                  -> return m
+        Left (TM.CPException (C.ParseError msg)) -> Nothing <$ putStrLn msg
+        Left (TM.CPException _                 ) -> return Nothing
+    handleOpenFileExceptions :: IO (Maybe a) -> IO (Maybe a)
+    handleOpenFileExceptions f = do
+      res <- tryJust (guard . isRelevantError) f
+      case res of
+        Right m -> return m
+        Left _  -> return Nothing
+    isRelevantError :: IOError -> Bool
+    isRelevantError e =  isAlreadyInUseError e
+                      || isDoesNotExistError e
+                      || isPermissionError e
+
+mergeWithOptions :: TM.Config -> Options -> TM.Config
+mergeWithOptions = mergeThemePaths <=< mergeTaskDB
+  where
+    mergeThemePaths conf opt = case oThemePaths opt of
+      [] -> conf
+      themes -> conf { TM.cThemes = themes }
+    mergeTaskDB conf opt = case oTaskDB opt of
+      Nothing -> conf
+      Just taskdb -> conf { TM.cTaskDB = taskdb }
+
 -- Could probably implement using EitherT, but too lazy :)
 loadThemes :: B.Theme -> [FilePath] -> IO B.Theme
 loadThemes theme [] = return theme
@@ -86,28 +144,33 @@ main :: IO ()
 main = do
   options <- O.execParser argParserInfo
 
+  -- Export default config
+  forM_ (oExportDefaultConfig options) $ \path -> do
+    action $ "Exporting default config to " ++ show path ++ "."
+    TM.saveConfig path TM.defaultConfig
+
   -- Export default theme
   forM_ (oExportDefaultTheme options) $ \path -> do
     action $ "Exporting default theme to " ++ show path ++ "."
     B.saveTheme path TM.defaultTheme
 
-  -- Export default config
-  -- TODO
-
   -- Load config
-  -- TODO
+  mConfig <- loadConfigs $ oConfigFile options
+  case mConfig of
+    Nothing -> do
+      putStrLn "Could not load any config."
+      putStrLn "Use the -C CONFIGFILE flag to generate a default config file."
+      die "No config file"
+    Just unmergedConfig -> do
+      -- Add command line options into config
+      let config = mergeWithOptions unmergedConfig options
 
-  -- Add command line options into config
-  -- TODO
+      -- According to config, load themes and initialize db
+      theme <- loadThemes TM.defaultTheme $ TM.cThemes config
+      DB.withConnection (TM.cTaskDB config) TM.initializeNewDB
 
-  -- According to config, load themes and connect to db
-  theme <- loadThemes TM.defaultTheme $ oThemePaths options
-
-  -- Do some debugging stuff or something
-  DB.withConnection "test.db" TM.initializeNewDB
-
-  -- Start the UI
-  error "Implement UI" theme
+      -- Start the UI
+      error "Implement UI" theme config
 
 --import qualified Database.SQLite.Simple as DB
 --import qualified TaskMachine.Database as TMD

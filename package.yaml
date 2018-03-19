@@ -27,6 +27,7 @@ dependencies:
 - brick
 - vty
 - optparse-applicative
+- ConfigFile
   #- containers
   #- unordered-containers
   #- text

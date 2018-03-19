@@ -4,11 +4,11 @@ module TaskMachine.UI where
 
 import           Data.Monoid
 
-import qualified Brick             as B
-import qualified Brick.Themes      as B
-import qualified Graphics.Vty      as VTY
+import qualified Brick              as B
+import qualified Brick.Themes       as B
+import qualified Graphics.Vty       as VTY
 
-import qualified TaskMachine.Types as TM
+import qualified TaskMachine.Config as TM
 
 defaultTheme :: B.Theme
 defaultTheme = B.newTheme VTY.defAttr
