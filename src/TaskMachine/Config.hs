@@ -25,8 +25,9 @@ defaultConfig = Config
   , cTaskDB = "~/.taskmachine/tasks.db"
   }
 
-defaultConfigFilePaths :: [FilePath]
-defaultConfigFilePaths = ["tasks.conf", "~/.taskmachine/tasks.conf"]
+defaultConfigFilePaths :: FilePath ->  [FilePath]
+defaultConfigFilePaths homedir =
+  [homedir ++ "/.taskmachine/tasks.conf", "tasks.conf"]
 
 newtype CPException = CPException C.CPErrorData
   deriving (Show)

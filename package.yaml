@@ -28,6 +28,7 @@ dependencies:
 - vty
 - optparse-applicative
 - ConfigFile
+- unix
   #- containers
   #- unordered-containers
   #- text

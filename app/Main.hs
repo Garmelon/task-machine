@@ -13,6 +13,7 @@ import qualified Brick.Themes           as B
 import qualified Data.ConfigFile        as C
 import qualified Database.SQLite.Simple as DB
 import qualified Options.Applicative    as O
+import qualified System.Posix.User as P
 
 import qualified TaskMachine.Config     as TM
 import qualified TaskMachine.Database   as TM
@@ -31,9 +32,42 @@ data Options = Options
   , oExportDefaultTheme  :: [FilePath]
   } deriving (Show)
 
-argParser :: O.Parser Options
-argParser = pure Options
-  <*> ((++ TM.defaultConfigFilePaths) <$> many configFile)
+{-
+ - Exit codes
+ -}
+
+noConfigFile :: ExitCode
+noConfigFile = ExitFailure 10
+
+rethrowAs :: (Exception e, Exception f) => (e -> Maybe f) -> IO a -> IO a
+rethrowAs f action = do
+  res <- tryJust f action
+  case res of
+    Right v -> return v
+    Left e  -> throwIO e
+
+rethrowAsIf :: (Exception e, Exception f) => (e -> Bool) -> f -> IO a -> IO a
+rethrowAsIf check newException action = do
+  res <- tryJust (guard . check) action
+  case res of
+    Right v -> return v
+    Left _ -> throwIO newException
+
+{-
+ - Useful functions
+ -}
+
+-- Log an action (prefixes "-> ")
+act :: String -> IO ()
+act = putStrLn . ("-> " ++)
+
+{-
+ - Command line options
+ -}
+
+argParser :: FilePath -> O.Parser Options
+argParser homedir = pure Options
+  <*> ((++ TM.defaultConfigFilePaths homedir) <$> many configFile)
   <*> optional taskDB
   <*> many themePaths
   <*> many exportDefaultConfig
@@ -45,7 +79,7 @@ argParser = pure Options
       , O.help $ "Where to look for a config file.\
                  \ This option can be set multiple times.\
                  \ If not specified, will look in these locations:\n"
-                 ++ intercalate "," (map show TM.defaultConfigFilePaths)
+                 ++ (intercalate "," $ map show $ TM.defaultConfigFilePaths homedir)
       , O.metavar "CONFIGFILE"
       ]
     taskDB = O.strOption $ mconcat
@@ -77,20 +111,20 @@ argParser = pure Options
       , O.metavar "THEMEFILE"
       ]
 
-argParserInfo :: O.ParserInfo Options
-argParserInfo = O.info (O.helper <*> argParser) $ mconcat
+argParserInfo :: FilePath -> O.ParserInfo Options
+argParserInfo homedir = O.info (O.helper <*> argParser homedir) $ mconcat
   [ O.fullDesc
   ]
 
--- Log an action (prefixes "-> ")
-action :: String -> IO ()
-action = putStrLn . ("-> " ++)
+{-
+ - Loading config and stuff
+ -}
 
 -- Kinda ugly...
 loadConfigs :: [FilePath] -> IO (Maybe TM.Config)
 loadConfigs [] = return Nothing
 loadConfigs (path:paths) = do
-  action $ "Loading config from " ++ show path ++ "."
+  act $ "Loading config from " ++ show path ++ "."
   mConf <- tryLoadConfig path
   case mConf of
     Just conf -> return (Just conf)
@@ -102,13 +136,14 @@ loadConfigs (path:paths) = do
     tryLoadConfig p = handleOpenFileExceptions
                     $ handleCPException
                     $ Just <$> TM.loadConfig p
+    --tryLoadConfig p = Just <$> TM.loadConfig p
     handleCPException :: IO (Maybe a) -> IO (Maybe a)
     handleCPException f = do
       res <- try f
       case res of
         Right m                                  -> return m
         Left (TM.CPException (C.ParseError msg)) -> Nothing <$ putStrLn msg
-        Left (TM.CPException _                 ) -> return Nothing
+        Left (TM.CPException _                 ) -> putStrLn "Bleep" >> return Nothing
     handleOpenFileExceptions :: IO (Maybe a) -> IO (Maybe a)
     handleOpenFileExceptions f = do
       res <- tryJust (guard . isRelevantError) f
@@ -124,53 +159,72 @@ mergeWithOptions :: TM.Config -> Options -> TM.Config
 mergeWithOptions = mergeThemePaths <=< mergeTaskDB
   where
     mergeThemePaths conf opt = case oThemePaths opt of
-      [] -> conf
+      []     -> conf
       themes -> conf { TM.cThemes = themes }
     mergeTaskDB conf opt = case oTaskDB opt of
-      Nothing -> conf
+      Nothing     -> conf
       Just taskdb -> conf { TM.cTaskDB = taskdb }
 
 -- Could probably implement using EitherT, but too lazy :)
 loadThemes :: B.Theme -> [FilePath] -> IO B.Theme
 loadThemes theme [] = return theme
 loadThemes theme (path:paths) = do
-  action $ "Loading theme " ++ show path ++ "."
-  eModifiedTheme <- B.loadCustomizations path theme
-  case eModifiedTheme of
-    Left errMsg         -> die errMsg
-    Right modifiedTheme -> loadThemes modifiedTheme paths
+  act $ "Loading theme from " ++ show path ++ "."
+  mNewTheme <- tryLoadCustomizations path theme
+  case mNewTheme of
+    Nothing -> do
+      putStrLn $ "Could not load theme from " ++ show path ++ "."
+      loadThemes theme paths
+    Just (Right newTheme) -> loadThemes newTheme paths
+    Just (Left errMsg) -> do
+      putStrLn $ "Could not load theme from " ++ show path ++ ": " ++ errMsg
+      loadThemes theme paths
+  where
+    tryLoadCustomizations :: FilePath -> B.Theme -> IO (Maybe (Either String B.Theme))
+    tryLoadCustomizations p t = handleOpenFileExceptions
+                              $ Just <$> B.loadCustomizations p t
+    handleOpenFileExceptions :: IO (Maybe a) -> IO (Maybe a)
+    handleOpenFileExceptions f = do
+      res <- tryJust (guard . isRelevantError) f
+      case res of
+        Right m -> return m
+        Left _  -> return Nothing
+    isRelevantError :: IOError -> Bool
+    isRelevantError e =  isAlreadyInUseError e
+                      || isDoesNotExistError e
+                      || isPermissionError e
 
 main :: IO ()
 main = do
-  options <- O.execParser argParserInfo
+  homedir <- P.homeDirectory <$> (P.getUserEntryForID =<< P.getRealUserID)
+  options <- O.execParser $ argParserInfo homedir
 
   -- Export default config
   forM_ (oExportDefaultConfig options) $ \path -> do
-    action $ "Exporting default config to " ++ show path ++ "."
+    act $ "Exporting default config to " ++ show path ++ "."
     TM.saveConfig path TM.defaultConfig
 
   -- Export default theme
   forM_ (oExportDefaultTheme options) $ \path -> do
-    action $ "Exporting default theme to " ++ show path ++ "."
+    act $ "Exporting default theme to " ++ show path ++ "."
     B.saveTheme path TM.defaultTheme
 
   -- Load config
   mConfig <- loadConfigs $ oConfigFile options
-  case mConfig of
+  config <- case mConfig of
     Nothing -> do
-      putStrLn "Could not load any config."
+      putStrLn ""
+      putStrLn "Could not find any config file."
       putStrLn "Use the -C CONFIGFILE flag to generate a default config file."
-      die "No config file"
-    Just unmergedConfig -> do
-      -- Add command line options into config
-      let config = mergeWithOptions unmergedConfig options
+      exitWith noConfigFile
+    Just unmergedConfig -> return $ mergeWithOptions unmergedConfig options
 
-      -- According to config, load themes and initialize db
-      theme <- loadThemes TM.defaultTheme $ TM.cThemes config
-      DB.withConnection (TM.cTaskDB config) TM.initializeNewDB
+  -- According to config, load themes and initialize db
+  theme <- loadThemes TM.defaultTheme $ TM.cThemes config
+  DB.withConnection (TM.cTaskDB config) TM.initializeNewDB
 
-      -- Start the UI
-      error "Implement UI" theme config
+  -- Start the UI
+  error "Implement UI" theme config
 
 --import qualified Database.SQLite.Simple as DB
 --import qualified TaskMachine.Database as TMD
