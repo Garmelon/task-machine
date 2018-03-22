@@ -17,7 +17,8 @@ import qualified TaskMachine.DateExpr   as TM
 data TaskRow = TaskRow
   { rowID               :: Integer
   , rowDeadline         :: Maybe Day
-  , rowFormula          :: Maybe TM.DateExpr
+  , rowFormula          :: Maybe TM.BoolExpr
+  , rowNumberFormula    :: Maybe TM.IntExpr
   , rowDescription      :: T.Text
   , rowDetails          :: T.Text
   , rowRepetitionsTotal :: Integer
@@ -29,6 +30,7 @@ instance DB.ToRow TaskRow where
     ( rowID
     , rowDeadline
     , rowFormula
+    , rowNumberFormula
     , rowDescription
     , rowDetails
     , rowRepetitionsTotal
@@ -37,14 +39,15 @@ instance DB.ToRow TaskRow where
 
 instance DB.FromRow TaskRow where
   fromRow = do
-    (a,b,c,d,e,f,g) <- DB.fromRow
+    (a,b,c,d,e,f,g,h) <- DB.fromRow
     let rowID               = a
         rowDeadline         = b
         rowFormula          = c
-        rowDescription      = d
-        rowDetails          = e
-        rowRepetitionsTotal = f
-        rowRepetitionsDone  = g
+        rowNumberFormula    = d
+        rowDescription      = e
+        rowDetails          = f
+        rowRepetitionsTotal = g
+        rowRepetitionsDone  = h
     return TaskRow{..}
 
 -- TODO: Maybe put this in separate module and/or make less specific
@@ -65,6 +68,7 @@ initializeNewDB c = do
       \  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,\
       \  deadline TEXT,\
       \  formula TEXT,\
+      \  numberFormula TEXT,\
       \  description TEXT NOT NULL,\
       \  details TEXT NOT NULL DEFAULT \"\",\
       \  repetitions_total INTEGER NOT NULL DEFAULT 1,\

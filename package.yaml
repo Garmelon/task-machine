@@ -21,24 +21,22 @@ description:         Please see the README on Github at <https://github.com/Garm
 
 dependencies:
 - base >= 4.7 && < 5
+- brick
+- ConfigFile
+- megaparsec
+- optparse-applicative
+- sqlite-simple
 - text
 - time
-- sqlite-simple
-- brick
-- vty
-- optparse-applicative
-- ConfigFile
 - unix
+- vty
   #- containers
   #- unordered-containers
-  #- text
-  #- time
   #- transformers
   #- async
   #- aeson
   #- bytestring
   #- stm
-  #- megaparsec
 
 library:
   source-dirs: src
