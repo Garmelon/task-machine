@@ -1,51 +1,45 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module TaskMachine.Config
-  ( Config(..)
+  ( HomeDir
+  , Config(..)
   , defaultConfig
   , defaultConfigFilePaths
-  , CPException(..)
   , loadConfig
   , saveConfig
   ) where
 
-import           Control.Exception
 import           Data.Either
 
-import qualified Data.ConfigFile   as C
+import qualified Data.ConfigFile as C
+
+type HomeDir = FilePath
 
 data Config = Config
   { cThemes :: [FilePath]
   , cTaskDB :: FilePath
   }
 
-defaultConfig :: Config
-defaultConfig = Config
+defaultConfig :: HomeDir -> Config
+defaultConfig homedir = Config
   { cThemes = []
-  , cTaskDB = "~/.taskmachine/tasks.db"
+  , cTaskDB = homedir ++ "/.taskmachine/tasks.db"
   }
 
-defaultConfigFilePaths :: FilePath ->  [FilePath]
+defaultConfigFilePaths :: HomeDir ->  [FilePath]
 defaultConfigFilePaths homedir =
   [homedir ++ "/.taskmachine/tasks.conf", "tasks.conf"]
 
-newtype CPException = CPException C.CPErrorData
-  deriving (Show)
-
-instance Exception CPException
-
-toCPException :: (C.CPErrorData, String) -> CPException
-toCPException (errorData, _) = CPException errorData
-
-loadConfig :: FilePath -> IO Config
-loadConfig path = do
-  mcp <- C.readfile C.emptyCP path
-  case mcp of
-    Left e -> throwIO $ toCPException e
+loadConfig :: HomeDir -> FilePath -> IO (Either C.CPErrorData Config)
+loadConfig homedir path = do
+  ecp <- C.readfile C.emptyCP path
+  case ecp of
+    Left (e, _) -> return $ Left e
     Right cp ->
-      let myThemes = fromRight (cThemes defaultConfig) $ C.get cp "DEFAULT" "themes"
-          myTaskDB = fromRight (cTaskDB defaultConfig) $ C.get cp "DEFAULT" "taskdb"
-      in  return Config
+      let config = defaultConfig homedir
+          myThemes = fromRight (cThemes config) $ C.get cp "DEFAULT" "themes"
+          myTaskDB = fromRight (cTaskDB config) $ C.get cp "DEFAULT" "taskdb"
+      in  return $ Right Config
             { cThemes = myThemes
             , cTaskDB = myTaskDB
             }
@@ -55,7 +49,7 @@ configToParser Config{..} = fromEither $ do
   cp1 <- C.set C.emptyCP "DEFAULT" "themes" (show cThemes)
   C.set cp1 "DEFAULT" "taskdb" cTaskDB
   where
-    fromEither (Left e)  = throw $ toCPException e
+    fromEither (Left _)  = undefined -- This should not be able to fail.
     fromEither (Right v) = v
 
 saveConfig :: FilePath -> Config -> IO ()
