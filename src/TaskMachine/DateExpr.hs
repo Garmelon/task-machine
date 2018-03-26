@@ -3,25 +3,16 @@
 module TaskMachine.DateExpr
   ( BoolExpr
   , parseBoolExpr
-  --, saveBoolExpr
   , evalBoolExpr
   , IntExpr
   , parseIntExpr
-  --, saveIntExpr
   , evalIntExpr
   ) where
 
 import           Control.Applicative
 import           Control.Monad
 import           Data.Void
---import           Data.List
---import           Data.Maybe
 
---import qualified Data.Text                        as T
---import qualified Database.SQLite.Simple           as DB
---import qualified Database.SQLite.Simple.FromField as DB
---import qualified Database.SQLite.Simple.Ok        as DB
---import qualified Database.SQLite.Simple.ToField   as DB
 import           Data.Time.Calendar
 import           Data.Time.Calendar.Easter
 import           Data.Time.Calendar.OrdinalDate
@@ -75,34 +66,8 @@ data SpecialDate
 parseBoolExpr :: String -> Maybe BoolExpr
 parseBoolExpr = parseMaybe boolExpr
 
---saveBoolExpr :: BoolExpr -> String
---saveBoolExpr = bToString
-
 parseIntExpr :: String -> Maybe IntExpr
 parseIntExpr = parseMaybe intExpr
-
---saveIntExpr :: IntExpr -> String
---saveIntExpr = iToString
-
---instance DB.ToField BoolExpr where
---  toField = DB.SQLText . T.pack . saveBoolExpr
---
---instance DB.FromField BoolExpr where
---  fromField f = case DB.fromField f of
---    DB.Errors e -> DB.Errors e
---    DB.Ok text -> case parseBoolExpr (T.unpack text) of
---      Nothing   -> DB.Errors [] -- TODO: Use proper exception?
---      Just expr -> DB.Ok expr
---
---instance DB.ToField IntExpr where
---  toField = DB.SQLText . T.pack . saveIntExpr
---
---instance DB.FromField IntExpr where
---  fromField f = case DB.fromField f of
---    DB.Errors e -> DB.Errors e
---    DB.Ok text -> case parseIntExpr (T.unpack text) of
---      Nothing   -> DB.Errors [] -- TODO: Use proper exception?
---      Just expr -> DB.Ok expr
 
 {-
  - Evaluating expressions
@@ -124,6 +89,15 @@ evalDateStatement IsLeapYear d = isLeapYear $ year d
 evalDateStatement IsWeekend  d = weekday d `elem` [6,7]
 evalDateStatement IsEaster   d = orthodoxEaster (year d) == d
 
+unlessSecondIsZero
+  :: (Integer -> Integer -> Integer)
+  -> IntExpr -> IntExpr -> Day -> Maybe Integer
+unlessSecondIsZero f a b d = do
+  x <- evalIntExpr a d
+  y <- evalIntExpr b d
+  guard $ y /= 0
+  return $ f x y
+
 evalIntExpr :: IntExpr -> Day -> Maybe Integer
 evalIntExpr (IValue v)      _ = pure v
 evalIntExpr (ISDate s)      d = pure $ evalSpecialDate s d
@@ -131,16 +105,8 @@ evalIntExpr (INegate   a)   d = negate <$> evalIntExpr a d
 evalIntExpr (IAdd      a b) d = (+) <$> evalIntExpr a d <*> evalIntExpr b d
 evalIntExpr (ISubtract a b) d = (-) <$> evalIntExpr a d <*> evalIntExpr b d
 evalIntExpr (IMultiply a b) d = (*) <$> evalIntExpr a d <*> evalIntExpr b d
-evalIntExpr (IDivide   a b) d = do
-  x <- evalIntExpr a d
-  y <- evalIntExpr b d
-  guard $ y /= 0
-  return $ x `div` y
-evalIntExpr (IModulo   a b) d = do
-  x <- evalIntExpr a d
-  y <- evalIntExpr b d
-  guard $ y /= 0
-  return $ x `mod` y
+evalIntExpr (IDivide   a b) d = unlessSecondIsZero div a b d
+evalIntExpr (IModulo   a b) d = unlessSecondIsZero mod a b d
 
 evalSpecialDate :: SpecialDate -> Day -> Integer
 evalSpecialDate SJulianDay  d = julian d
@@ -174,101 +140,6 @@ weekday d = let (_,_,r) = toWeekDate d in toInteger r
 
 yearday :: Day -> Integer
 yearday d = let (_,r) = toOrdinalDate d in toInteger r
-
-{-
- - Converting to string
- -}
-
-{-
-parenthesizeIf :: (a -> String) -> [(a -> Bool)] -> a -> String
-parenthesizeIf toString conditions expr =
-  if any ($expr) conditions
-    then "(" ++ toString expr ++ ")"
-    else        toString expr
-
-parenthesizeIfNot :: (a -> String) -> [(a -> Bool)] -> a -> String
-parenthesizeIfNot toString conditions expr =
-  if any ($expr) conditions
-    then        toString expr
-    else "(" ++ toString expr ++ ")"
-
-iParenthesizeIf :: [(IntExpr -> Bool)] -> IntExpr -> String
-iParenthesizeIf = parenthesizeIf iToString
-
-iParenthesizeIfNot :: [(IntExpr -> Bool)] -> IntExpr -> String
-iParenthesizeIfNot = parenthesizeIfNot iToString
-
-isIAdd :: IntExpr -> Bool
-isIAdd (IAdd _ _) = True
-isIAdd _          = False
-
-isISubtract :: IntExpr -> Bool
-isISubtract (ISubtract _ _) = True
-isISubtract _               = False
-
-isINegate :: IntExpr -> Bool
-isINegate (INegate _) = True
-isINegate _           = False
-
-isIValue :: IntExpr -> Bool
-isIValue (IValue _) = True
-isIValue _          = False
-
-isISDate :: IntExpr -> Bool
-isISDate (ISDate _) = True
-isISDate _          = False
-
-iToString :: IntExpr -> String
-iToString (IValue a)      = show a
-iToString (ISDate a)      = specialDateToString a
-iToString (INegate a)     = '-' : iParenthesizeIfNot [isIValue, isISDate] a
-iToString (IAdd a b)      = iToString a ++ " + " ++ iParenthesizeIf [isINegate] b
-iToString (ISubtract a b) = iToString a ++ " - " ++ iParenthesizeIf [isINegate, isIAdd, isISubtract] b
-iToString (IMultiply a b) = iParenthesizeIf [isIAdd, isISubtract] a ++ " * " ++ iParenthesizeIf [isIAdd, isISubtract, isINegate] b
-iToString (IDivide a b)   = iParenthesizeIf [isIAdd, isISubtract] a ++ " / " ++ iParenthesizeIf [isIAdd, isISubtract, isINegate] b
-iToString (IModulo a b)   = iParenthesizeIf [isIAdd, isISubtract] a ++ " % " ++ iParenthesizeIf [isIAdd, isISubtract, isINegate] b
-
-specialDateToString :: SpecialDate -> String
-specialDateToString SJulianDay  = "julian"
-specialDateToString SYear       = "year"
-specialDateToString SMonth      = "month"
-specialDateToString SDay        = "day"
-specialDateToString SDayOfYear  = "yearday"
-specialDateToString SDayOfWeek  = "weekday"
-specialDateToString SYearCount  = "yearcount"
-specialDateToString SMonthCount = "monthcount"
-specialDateToString SEaster     = "easter"
-
-bParenthesizeIf :: [(BoolExpr -> Bool)] -> BoolExpr -> String
-bParenthesizeIf = parenthesizeIf bToString
-
-bParenthesizeIfNot :: [(BoolExpr -> Bool)] -> BoolExpr -> String
-bParenthesizeIfNot = parenthesizeIfNot bToString
-
-isBValue :: BoolExpr -> Bool
-isBValue (BValue _) = True
-isBValue _          = False
-
-isBStatement :: BoolExpr -> Bool
-isBStatement (BStatement _) = True
-isBStatement _              = False
-
-isBComparison :: BoolExpr -> Bool
-isBComparison (BEqual _ _)   = True
-isBComparison (BGreater _ _) = True
-isBComparison (BLess _ _)    = True
-isBComparison _              = False
-
-bToString :: BoolExpr -> String
-bToString (BValue True)  = "true"
-bToString (BValue False) = "false"
-bToString (BStatement a) = dateStatementToString a
-bToString (BNot a)       = '!' : bParenthesizeIfNot [isBValue, isBStatement] a
-bToString (BAnd a b)     = bToString a ++ " && " ++ bParenthesizeIf [isBSame, isBComparison] b
-
-dateStatementToString :: DateStatement -> String
-dateStatementToString = undefined
--}
 
 {-
  - Parsing
@@ -374,10 +245,10 @@ pSpecialDate =   name SJulianDay  "julian"
              <|> name SYearCount  "yearcount"
              <|> name SMonthCount "monthcount"
              <|> name SEaster     "easter"
-  where name a b = (a <$ symbol b)
+  where name a b = a <$ symbol b
 
 pDateStatement :: Parser DateStatement
 pDateStatement =   name IsLeapYear "isleapyear"
                <|> name IsWeekend  "isweekend"
                <|> name IsEaster   "iseaster"
-  where name a b = (a <$ symbol b)
+  where name a b = a <$ symbol b
