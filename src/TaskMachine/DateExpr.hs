@@ -3,26 +3,32 @@
 module TaskMachine.DateExpr
   ( BoolExpr
   , parseBoolExpr
-  , saveBoolExpr
+  --, saveBoolExpr
+  , evalBoolExpr
   , IntExpr
   , parseIntExpr
-  , saveIntExpr
+  --, saveIntExpr
+  , evalIntExpr
   ) where
 
 import           Control.Applicative
 import           Control.Monad
-import           Data.List
-import           Data.Maybe
 import           Data.Void
+--import           Data.List
+--import           Data.Maybe
 
-import qualified Data.Text                        as T
-import qualified Database.SQLite.Simple           as DB
-import qualified Database.SQLite.Simple.FromField as DB
-import qualified Database.SQLite.Simple.Ok        as DB
-import qualified Database.SQLite.Simple.ToField   as DB
+--import qualified Data.Text                        as T
+--import qualified Database.SQLite.Simple           as DB
+--import qualified Database.SQLite.Simple.FromField as DB
+--import qualified Database.SQLite.Simple.Ok        as DB
+--import qualified Database.SQLite.Simple.ToField   as DB
+import           Data.Time.Calendar
+import           Data.Time.Calendar.Easter
+import           Data.Time.Calendar.OrdinalDate
+import           Data.Time.Calendar.WeekDate
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
-import qualified Text.Megaparsec.Char.Lexer       as L
+import qualified Text.Megaparsec.Char.Lexer     as L
 import           Text.Megaparsec.Expr
 
 data BoolExpr
@@ -69,56 +75,128 @@ data SpecialDate
 parseBoolExpr :: String -> Maybe BoolExpr
 parseBoolExpr = parseMaybe boolExpr
 
-saveBoolExpr :: BoolExpr -> String
-saveBoolExpr = bToString
+--saveBoolExpr :: BoolExpr -> String
+--saveBoolExpr = bToString
 
 parseIntExpr :: String -> Maybe IntExpr
 parseIntExpr = parseMaybe intExpr
 
-saveIntExpr :: IntExpr -> String
-saveIntExpr = iToString
+--saveIntExpr :: IntExpr -> String
+--saveIntExpr = iToString
 
-instance DB.ToField BoolExpr where
-  toField = DB.SQLText . T.pack . saveBoolExpr
-
-instance DB.FromField BoolExpr where
-  fromField f = case DB.fromField f of
-    DB.Errors e -> DB.Errors e
-    DB.Ok text -> case parseBoolExpr (T.unpack text) of
-      Nothing   -> DB.Errors [] -- TODO: Use proper exception?
-      Just expr -> DB.Ok expr
-
-instance DB.ToField IntExpr where
-  toField = DB.SQLText . T.pack . saveIntExpr
-
-instance DB.FromField IntExpr where
-  fromField f = case DB.fromField f of
-    DB.Errors e -> DB.Errors e
-    DB.Ok text -> case parseIntExpr (T.unpack text) of
-      Nothing   -> DB.Errors [] -- TODO: Use proper exception?
-      Just expr -> DB.Ok expr
+--instance DB.ToField BoolExpr where
+--  toField = DB.SQLText . T.pack . saveBoolExpr
+--
+--instance DB.FromField BoolExpr where
+--  fromField f = case DB.fromField f of
+--    DB.Errors e -> DB.Errors e
+--    DB.Ok text -> case parseBoolExpr (T.unpack text) of
+--      Nothing   -> DB.Errors [] -- TODO: Use proper exception?
+--      Just expr -> DB.Ok expr
+--
+--instance DB.ToField IntExpr where
+--  toField = DB.SQLText . T.pack . saveIntExpr
+--
+--instance DB.FromField IntExpr where
+--  fromField f = case DB.fromField f of
+--    DB.Errors e -> DB.Errors e
+--    DB.Ok text -> case parseIntExpr (T.unpack text) of
+--      Nothing   -> DB.Errors [] -- TODO: Use proper exception?
+--      Just expr -> DB.Ok expr
 
 {-
  - Evaluating expressions
  -}
 
--- TODO
+evalBoolExpr :: BoolExpr -> Day -> Maybe Bool
+evalBoolExpr (BValue v)     _ = pure v
+evalBoolExpr (BStatement s) d = pure $ evalDateStatement s d
+evalBoolExpr (BNot     a)   d = not  <$> evalBoolExpr a d
+evalBoolExpr (BAnd     a b) d = (&&) <$> evalBoolExpr a d <*> evalBoolExpr b d
+evalBoolExpr (BOr      a b) d = (||) <$> evalBoolExpr a d <*> evalBoolExpr b d
+evalBoolExpr (BSame    a b) d = (==) <$> evalBoolExpr a d <*> evalBoolExpr b d
+evalBoolExpr (BEqual   a b) d = (==) <$> evalIntExpr a d <*> evalIntExpr b d
+evalBoolExpr (BGreater a b) d = (>)  <$> evalIntExpr a d <*> evalIntExpr b d
+evalBoolExpr (BLess    a b) d = (<)  <$> evalIntExpr a d <*> evalIntExpr b d
+
+evalDateStatement :: DateStatement -> Day -> Bool
+evalDateStatement IsLeapYear d = isLeapYear $ year d
+evalDateStatement IsWeekend  d = weekday d `elem` [6,7]
+evalDateStatement IsEaster   d = orthodoxEaster (year d) == d
+
+evalIntExpr :: IntExpr -> Day -> Maybe Integer
+evalIntExpr (IValue v)      _ = pure v
+evalIntExpr (ISDate s)      d = pure $ evalSpecialDate s d
+evalIntExpr (INegate   a)   d = negate <$> evalIntExpr a d
+evalIntExpr (IAdd      a b) d = (+) <$> evalIntExpr a d <*> evalIntExpr b d
+evalIntExpr (ISubtract a b) d = (-) <$> evalIntExpr a d <*> evalIntExpr b d
+evalIntExpr (IMultiply a b) d = (*) <$> evalIntExpr a d <*> evalIntExpr b d
+evalIntExpr (IDivide   a b) d = do
+  x <- evalIntExpr a d
+  y <- evalIntExpr b d
+  guard $ y /= 0
+  return $ x `div` y
+evalIntExpr (IModulo   a b) d = do
+  x <- evalIntExpr a d
+  y <- evalIntExpr b d
+  guard $ y /= 0
+  return $ x `mod` y
+
+evalSpecialDate :: SpecialDate -> Day -> Integer
+evalSpecialDate SJulianDay  d = julian d
+evalSpecialDate SYear       d = year d
+evalSpecialDate SMonth      d = month d
+evalSpecialDate SDay        d = day d
+evalSpecialDate SDayOfYear  d = weekday d
+evalSpecialDate SDayOfWeek  d = yearday d
+evalSpecialDate SYearCount  d = ((yearday d - 1) `div` 7) + 1
+evalSpecialDate SMonthCount d = ((day d - 1) `div` 7) + 1
+evalSpecialDate SEaster     d = diffDays (orthodoxEaster $ year d) d -- days after easter
+
+{-
+ - Helper functions for evaluation
+ -}
+
+julian :: Day -> Integer
+julian = toModifiedJulianDay
+
+year :: Day -> Integer
+year d = let (r,_,_) = toGregorian d in r
+
+month :: Day -> Integer
+month d = let (_,r,_) = toGregorian d in toInteger r
+
+day :: Day -> Integer
+day d = let (_,_,r) = toGregorian d in toInteger r
+
+weekday :: Day -> Integer
+weekday d = let (_,_,r) = toWeekDate d in toInteger r
+
+yearday :: Day -> Integer
+yearday d = let (_,r) = toOrdinalDate d in toInteger r
 
 {-
  - Converting to string
  -}
 
+{-
+parenthesizeIf :: (a -> String) -> [(a -> Bool)] -> a -> String
+parenthesizeIf toString conditions expr =
+  if any ($expr) conditions
+    then "(" ++ toString expr ++ ")"
+    else        toString expr
+
+parenthesizeIfNot :: (a -> String) -> [(a -> Bool)] -> a -> String
+parenthesizeIfNot toString conditions expr =
+  if any ($expr) conditions
+    then        toString expr
+    else "(" ++ toString expr ++ ")"
+
 iParenthesizeIf :: [(IntExpr -> Bool)] -> IntExpr -> String
-iParenthesizeIf conditions expr =
-  if or (map ($expr) conditions)
-    then "(" ++ iToString expr ++ ")"
-    else        iToString expr
+iParenthesizeIf = parenthesizeIf iToString
 
 iParenthesizeIfNot :: [(IntExpr -> Bool)] -> IntExpr -> String
-iParenthesizeIfNot conditions expr =
-  if or (map ($expr) conditions)
-    then        iToString expr
-    else "(" ++ iToString expr ++ ")"
+iParenthesizeIfNot = parenthesizeIfNot iToString
 
 isIAdd :: IntExpr -> Bool
 isIAdd (IAdd _ _) = True
@@ -161,11 +239,36 @@ specialDateToString SYearCount  = "yearcount"
 specialDateToString SMonthCount = "monthcount"
 specialDateToString SEaster     = "easter"
 
+bParenthesizeIf :: [(BoolExpr -> Bool)] -> BoolExpr -> String
+bParenthesizeIf = parenthesizeIf bToString
+
+bParenthesizeIfNot :: [(BoolExpr -> Bool)] -> BoolExpr -> String
+bParenthesizeIfNot = parenthesizeIfNot bToString
+
+isBValue :: BoolExpr -> Bool
+isBValue (BValue _) = True
+isBValue _          = False
+
+isBStatement :: BoolExpr -> Bool
+isBStatement (BStatement _) = True
+isBStatement _              = False
+
+isBComparison :: BoolExpr -> Bool
+isBComparison (BEqual _ _)   = True
+isBComparison (BGreater _ _) = True
+isBComparison (BLess _ _)    = True
+isBComparison _              = False
+
 bToString :: BoolExpr -> String
-bToString = undefined
+bToString (BValue True)  = "true"
+bToString (BValue False) = "false"
+bToString (BStatement a) = dateStatementToString a
+bToString (BNot a)       = '!' : bParenthesizeIfNot [isBValue, isBStatement] a
+bToString (BAnd a b)     = bToString a ++ " && " ++ bParenthesizeIf [isBSame, isBComparison] b
 
 dateStatementToString :: DateStatement -> String
 dateStatementToString = undefined
+-}
 
 {-
  - Parsing
@@ -192,10 +295,10 @@ bool :: Parser Bool
 bool = (True <$ symbol "true") <|> (False <$ symbol "false")
 
 -- Helper functions for defining tables
---prefix :: String -> a -> Parser a
+prefix :: String -> (a -> a) -> Operator Parser a
 prefix name f = Prefix (f <$ symbol name)
 
---infixL :: String -> a -> Parser a
+infixL :: String -> (a -> a -> a) -> Operator Parser a
 infixL name f = InfixL (f <$ symbol name)
 
 -- Parse IntExpr
