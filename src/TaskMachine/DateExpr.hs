@@ -4,6 +4,7 @@ module TaskMachine.DateExpr
   ( BoolExpr
   , parseBoolExpr
   , evalBoolExpr
+  , findNext
   , IntExpr
   , parseIntExpr
   , evalIntExpr
@@ -11,6 +12,8 @@ module TaskMachine.DateExpr
 
 import           Control.Applicative
 import           Control.Monad
+import           Data.List
+import           Data.Maybe
 import           Data.Void
 
 import           Data.Time.Calendar
@@ -68,6 +71,12 @@ parseBoolExpr = parseMaybe boolExpr
 
 parseIntExpr :: String -> Maybe IntExpr
 parseIntExpr = parseMaybe intExpr
+
+findNext :: BoolExpr -> Day -> Int -> Maybe Day
+findNext expr start duration =
+  let possibleDays = take duration $ iterate (addDays 1) start
+      checkDay = fromMaybe False . evalBoolExpr expr
+  in  find checkDay possibleDays
 
 {-
  - Evaluating expressions

@@ -52,8 +52,9 @@ instance DB.FromField BoolFormula where
 data TaskRow = TaskRow
   { rowID               :: Integer
   , rowDeadline         :: Maybe Day
-  , rowBoolFormula      :: Maybe BoolFormula -- deadline formula
-  , rowIntFormula       :: Maybe IntFormula  -- info formula (e. g. age for birthdays)
+  , rowDuration         :: Integer -- If there is no deadline, the duration is irrelevant
+  , rowBoolFormula      :: Maybe BoolFormula -- Deadline formula
+  , rowIntFormula       :: Maybe IntFormula  -- Info formula (e. g. age for birthdays)
   , rowDescription      :: T.Text
   , rowDetails          :: T.Text
   , rowRepetitionsTotal :: Integer
@@ -64,6 +65,7 @@ instance DB.ToRow TaskRow where
   toRow TaskRow{..} = DB.toRow
     ( rowID
     , rowDeadline
+    , rowDuration
     , rowBoolFormula
     , rowIntFormula
     , rowDescription
@@ -74,15 +76,16 @@ instance DB.ToRow TaskRow where
 
 instance DB.FromRow TaskRow where
   fromRow = do
-    (a,b,c,d,e,f,g,h) <- DB.fromRow
+    (a,b,c,d,e,f,g,h,i) <- DB.fromRow
     let rowID               = a
         rowDeadline         = b
-        rowBoolFormula      = c
-        rowIntFormula       = d
-        rowDescription      = e
-        rowDetails          = f
-        rowRepetitionsTotal = g
-        rowRepetitionsDone  = h
+        rowDuration         = c
+        rowBoolFormula      = d
+        rowIntFormula       = e
+        rowDescription      = f
+        rowDetails          = g
+        rowRepetitionsTotal = h
+        rowRepetitionsDone  = i
     return TaskRow{..}
 
 -- TODO: Maybe put this in separate module and/or make less specific?
@@ -102,6 +105,7 @@ initializeNewDB c = do
       "CREATE TABLE IF NOT EXISTS tasks (\
       \  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,\
       \  deadline TEXT,\
+      \  duration INTEGER NOT NULL,\
       \  boolFormula TEXT,\
       \  intFormula TEXT,\
       \  description TEXT NOT NULL,\
@@ -116,15 +120,22 @@ initializeNewDB c = do
     fillVersionTable =
       "INSERT INTO version (version_number) VALUES (?)"
 
-updateTask :: TaskRow -> Maybe TaskRow
-updateTask t = undefined
+updateTask :: Day -> TaskRow -> Maybe (Day, Integer)
+updateTask day t = do
+  expr <- boolFormulaExpr <$> rowBoolFormula t
+  nextDeadline <- TM.findNext expr day (fromIntegral $ rowDuration t)
+  case rowDeadline t of
+    Nothing           -> return (nextDeadline, rowID t)
+    Just prevDeadline ->
+      if prevDeadline == nextDeadline
+        then Nothing
+        else return (nextDeadline, rowID t)
 
-updateTasks :: DB.Connection -> IO ()
-updateTasks c = DB.withTransaction c $ do
+updateTasks :: DB.Connection -> Day -> IO ()
+updateTasks c day = DB.withTransaction c $ do
   tasks <- DB.query_ c selectTasksToUpdate
-  let toUpdate = catMaybes $ map updateTask tasks
-      params = map (\t -> (rowDeadline t, rowID t)) toUpdate
-  DB.executeMany c updateTaskRow params
+  let updated = mapMaybe (updateTask day) tasks
+  DB.executeMany c updateTaskRow updated
   where
     selectTasksToUpdate =
       "SELECT * FROM tasks\
