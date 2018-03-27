@@ -6,17 +6,22 @@ import           Control.Applicative
 import           Control.Exception
 import           Control.Monad
 import           Data.List
+import           Data.Maybe
 import           System.Exit
 import           System.IO.Error
 
 import qualified Brick.Themes           as B
 import qualified Data.ConfigFile        as C
+import qualified Data.Text              as T
+import           Data.Time.Calendar
+import           Data.Time.Clock
 import qualified Database.SQLite.Simple as DB
 import qualified Options.Applicative    as O
 import qualified System.Posix.User      as P
 
 import qualified TaskMachine.Config     as TM
 import qualified TaskMachine.Database   as TM
+import qualified TaskMachine.DateExpr   as TM
 import qualified TaskMachine.UI         as TM
 
 -- TODO: When adding oConfigFile back, make oTaskDB a Maybe FilePath.
@@ -202,7 +207,38 @@ main = do
 
   -- ... and initialize db
   act $ "Using db at " ++ show (TM.cTaskDB config) ++ "."
-  DB.withConnection (TM.cTaskDB config) TM.initializeNewDB
+  DB.withConnection (TM.cTaskDB config) $ \c -> do
+    TM.initializeNewDB c
 
-  -- Start the UI
-  error "Implement UI" theme config
+    -- TESTING
+    testDB c
+
+    -- Start the UI
+    error "Implement UI" theme config
+
+testDB :: DB.Connection -> IO ()
+testDB c = do
+  now <- utctDay <$> getCurrentTime
+  let deadlineBefore = Just $ addDays (-2) now
+      deadlineAfter = Just $ addDays 2 now
+      boolFormulaText = "weekday == tue && monthcount == 1"
+      boolFormulaExpr = fromJust $ TM.parseBoolExpr boolFormulaText
+      boolFormula = Just $ TM.BoolFormula (T.pack boolFormulaText) boolFormulaExpr
+      duration = 10
+      taskOne = TM.TaskRow 0 deadlineBefore duration Nothing Nothing "task 1" "" 1 0
+      taskTwo = TM.TaskRow 0 deadlineAfter duration Nothing Nothing "task 2" "" 1 0
+      taskThree = TM.TaskRow 0 deadlineBefore duration boolFormula Nothing "task 3" "" 1 1
+      taskFour = TM.TaskRow 0 deadlineAfter duration boolFormula Nothing "task 4" "" 0 0
+      taskFive = TM.TaskRow 0 Nothing duration boolFormula Nothing "task 5" "" 1 0
+  mapM_ (TM.addTask c) [taskOne, taskTwo, taskThree, taskFour, taskFive]
+  TM.updateTasks c now
+  putStrLn "RELEVANT TASKS"
+  tasks <- TM.selectRelevantTasks c now
+  forM_ tasks $ print . TM.rowDescription
+  putStrLn "DOIN A TASK"
+  TM.doTask c $ TM.rowID $ head tasks
+  putStrLn "DELETIN A TASK"
+  TM.removeTask c $ TM.rowID $ tasks !! 1
+  putStrLn "RELEVANT TASKS"
+  tasks2 <- TM.selectRelevantTasks c now
+  forM_ tasks2 $ print . TM.rowDescription

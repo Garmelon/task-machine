@@ -3,11 +3,19 @@
 
 module TaskMachine.Database
   ( TaskRow(..)
+  , IntFormula(..)
+  , BoolFormula(..)
   , initializeNewDB
   , updateTasks
+  , selectRelevantTasks
+  , addTask
+  , editTask
+  , removeTask
+  , doTask
   ) where
 
 import           Control.Exception
+import           Control.Monad
 import           Data.Maybe
 
 import qualified Data.Text                        as T
@@ -49,8 +57,10 @@ instance DB.FromField BoolFormula where
       Nothing -> DB.Errors [] -- TODO: Proper exception?
       Just expr -> DB.Ok BoolFormula{ boolFormulaText = text, boolFormulaExpr = expr }
 
+type TaskID = Integer
+
 data TaskRow = TaskRow
-  { rowID               :: Integer
+  { rowID               :: TaskID
   , rowDeadline         :: Maybe Day
   , rowDuration         :: Integer -- If there is no deadline, the duration is irrelevant
   , rowBoolFormula      :: Maybe BoolFormula -- Deadline formula
@@ -138,10 +148,83 @@ updateTasks c day = DB.withTransaction c $ do
   DB.executeMany c updateTaskRow updated
   where
     selectTasksToUpdate =
-      "SELECT * FROM tasks\
+      "SELECT id,deadline,duration,boolFormula,intFormula,description,details,repetitions_total,repetitions_done FROM tasks\
       \  WHERE boolFormula IS NOT NULL"
     updateTaskRow =
       "UPDATE tasks\
       \  SET deadline = ?\
-      \      repetitions_done = 0\
+      \    , repetitions_done = 0\
       \  WHERE id = ?"
+
+selectRelevantTasks :: DB.Connection -> Day -> IO [TaskRow]
+selectRelevantTasks c day = do
+  tasks <- DB.query c queryInterestingTasks (DB.Only day)
+  return $ filter isWithinDuration tasks
+  where
+    queryInterestingTasks =
+      "SELECT id,deadline,duration,boolFormula,intFormula,description,details,repetitions_total,repetitions_done FROM tasks\
+      \  WHERE (repetitions_done < repetitions_total OR repetitions_total = 0)\
+      \    AND (deadline >= ? OR (deadline IS NULL AND boolFormula IS NULL))"
+    isWithinDuration t = isJust $ do
+      deadline <- rowDeadline t
+      let duration = rowDuration t
+      guard $ addDays (-duration) deadline <= day
+
+addTask :: DB.Connection -> TaskRow -> IO ()
+addTask c task = DB.execute c insertTask params
+  where
+    insertTask =
+      "INSERT INTO tasks (deadline,duration,boolFormula,intFormula,description,details,repetitions_total,repetitions_done)\
+      \  VALUES (?,?,?,?,?,?,?,?)"
+    params =
+      ( rowDeadline task
+      , rowDuration task
+      , rowBoolFormula task
+      , rowIntFormula task
+      , rowDescription task
+      , rowDetails task
+      , rowRepetitionsTotal task
+      , rowRepetitionsDone task
+      )
+
+editTask :: DB.Connection -> TaskRow -> IO ()
+editTask c task = DB.execute c editUpdateTask params
+  where
+    editUpdateTask =
+      "UPDATE tasks\
+      \  SET deadline = ?\
+      \    , duration = ?\
+      \    , boolFormula = ?\
+      \    , intFormula = ?\
+      \    , description = ?\
+      \    , details = ?\
+      \    , repetitions_total = ?\
+      \    , repetitions_done = ?\
+      \  WHERE id = ?"
+    params =
+      ( rowDeadline task
+      , rowDuration task
+      , rowBoolFormula task
+      , rowIntFormula task
+      , rowDescription task
+      , rowDetails task
+      , rowRepetitionsTotal task
+      , rowRepetitionsDone task
+      , rowID task
+      )
+
+removeTask :: DB.Connection -> TaskID -> IO ()
+removeTask c taskID = DB.execute c deleteTask (DB.Only taskID)
+  where
+    deleteTask =
+      "DELETE FROM tasks\
+      \  WHERE id = ?"
+
+doTask :: DB.Connection -> TaskID -> IO ()
+doTask c taskID = DB.execute c incrementTotal (DB.Only taskID)
+  where
+    incrementTotal =
+      "UPDATE tasks\
+      \  SET repetitions_done = repetitions_done + 1\
+      \  WHERE id = ?\
+      \    AND repetitions_done < repetitions_total"
