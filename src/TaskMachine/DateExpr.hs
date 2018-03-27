@@ -122,8 +122,8 @@ evalSpecialDate SJulianDay  d = julian d
 evalSpecialDate SYear       d = year d
 evalSpecialDate SMonth      d = month d
 evalSpecialDate SDay        d = day d
-evalSpecialDate SDayOfYear  d = weekday d
-evalSpecialDate SDayOfWeek  d = yearday d
+evalSpecialDate SDayOfYear  d = yearday d
+evalSpecialDate SDayOfWeek  d = weekday d
 evalSpecialDate SYearCount  d = ((yearday d - 1) `div` 7) + 1
 evalSpecialDate SMonthCount d = ((day d - 1) `div` 7) + 1
 evalSpecialDate SEaster     d = diffDays (orthodoxEaster $ year d) d -- days after easter
@@ -169,10 +169,20 @@ parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
 
 integer :: Parser Integer
-integer = lexeme L.decimal
+integer =   (1 <$ (symbol "monday"    <|> symbol "mon"))
+        <|> (2 <$ (symbol "tuesday"   <|> symbol "tue"))
+        <|> (3 <$ (symbol "wednesday" <|> symbol "wed"))
+        <|> (4 <$ (symbol "thursday"  <|> symbol "thu"))
+        <|> (5 <$ (symbol "friday"    <|> symbol "fri"))
+        <|> (6 <$ (symbol "saturday"  <|> symbol "sat"))
+        <|> (7 <$ (symbol "sunday"    <|> symbol "sun"))
+        <|> lexeme L.decimal
+        <?> "integer or day of week"
 
 bool :: Parser Bool
-bool = (True <$ symbol "true") <|> (False <$ symbol "false")
+bool =   (True <$ symbol "true")
+     <|> (False <$ symbol "false")
+     <?> "boolean value"
 
 -- Helper functions for defining tables
 prefix :: String -> (a -> a) -> Operator Parser a
@@ -199,10 +209,13 @@ intTable =
     ]
   ]
 
+-- WARNING: Leave the ISDate parser before the integer parser, otherwise
+-- "month" and "monthcount" won't parse because the integer parser parses
+-- "mon" (monday).
 intTerm :: Parser IntExpr
 intTerm =   parens intExpr
-        <|> IValue <$> integer
         <|> ISDate <$> pSpecialDate
+        <|> IValue <$> integer
         <?> "integer expression"
 
 -- Parse BoolExpr
@@ -244,20 +257,24 @@ intRelation =   (BEqual <$ symbol "==")
             <|> (BLess    <$ symbol "<")
             <?> "integer comparison"
 
+-- WARNING: If one name contains another name (e. g. "monthcount" and "month"),
+-- put the longer name first, or else it will never parse correctly.
 pSpecialDate :: Parser SpecialDate
 pSpecialDate =   name SJulianDay  "julian"
-             <|> name SYear       "year"
-             <|> name SMonth      "month"
              <|> name SDay        "day"
-             <|> name SDayOfYear  "yearday"
-             <|> name SDayOfWeek  "weekday"
              <|> name SYearCount  "yearcount"
+             <|> name SDayOfYear  "yearday"
+             <|> name SYear       "year"
+             <|> name SDayOfWeek  "weekday"
              <|> name SMonthCount "monthcount"
+             <|> name SMonth      "month"
              <|> name SEaster     "easter"
+             <?> "special date"
   where name a b = a <$ symbol b
 
 pDateStatement :: Parser DateStatement
 pDateStatement =   name IsLeapYear "isleapyear"
                <|> name IsWeekend  "isweekend"
                <|> name IsEaster   "iseaster"
+               <?> "date statement"
   where name a b = a <$ symbol b
