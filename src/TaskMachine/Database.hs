@@ -1,10 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
-module TaskMachine.Database
+module TaskMachine.Database where
+{-
   ( TaskRow(..)
   , IntFormula(..)
   , BoolFormula(..)
+  , TaskID
+  , Duration
   , initializeNewDB
   , updateTasks
   , selectRelevantTasks
@@ -58,11 +61,12 @@ instance DB.FromField BoolFormula where
       Just expr -> DB.Ok BoolFormula{ boolFormulaText = text, boolFormulaExpr = expr }
 
 type TaskID = Integer
+type Duration = Integer
 
 data TaskRow = TaskRow
   { rowID               :: TaskID
   , rowDeadline         :: Maybe Day
-  , rowDuration         :: Integer -- If there is no deadline, the duration is irrelevant
+  , rowDuration         :: Maybe Integer -- If there is no deadline, duration is irrelevant
   , rowBoolFormula      :: Maybe BoolFormula -- Deadline formula
   , rowIntFormula       :: Maybe IntFormula  -- Info formula (e. g. age for birthdays)
   , rowDescription      :: T.Text
@@ -228,3 +232,4 @@ doTask c taskID = DB.execute c incrementTotal (DB.Only taskID)
       \  SET repetitions_done = repetitions_done + 1\
       \  WHERE id = ?\
       \    AND repetitions_done < repetitions_total"
+-}

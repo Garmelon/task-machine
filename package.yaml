@@ -29,6 +29,7 @@ dependencies:
 - text
 - time
 - unix
+- vector
 - vty
 - hspec
 - QuickCheck

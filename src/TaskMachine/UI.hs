@@ -4,11 +4,26 @@ module TaskMachine.UI where
 
 import           Data.Monoid
 
-import qualified Brick              as B
-import qualified Brick.Themes       as B
-import qualified Graphics.Vty       as VTY
+import qualified Brick                     as B
+import qualified Brick.Themes              as B
+import qualified Database.SQLite.Simple    as DB
+import qualified Graphics.Vty              as VTY
 
-import qualified TaskMachine.Config as TM
+import qualified TaskMachine.Config        as TM
+--import qualified TaskMachine.UI.ListScreen as TM
+
+data ResourceName = Asdf
+  deriving (Eq, Ord)
+
+data UIState = UIState
+  { uiConfig       :: TM.Config
+  , uiDBConnection :: DB.Connection
+  , uiScreenState  :: ScreenState
+  }
+
+data ScreenState
+  = Dummy
+--  = ScreenList TM.ListScreen
 
 defaultTheme :: B.Theme
 defaultTheme = B.newTheme VTY.defAttr
@@ -16,13 +31,6 @@ defaultTheme = B.newTheme VTY.defAttr
   , ("taskList" <> "highlight",                      B.bg VTY.cyan)
   ]
   where withStyle = flip VTY.withStyle
-
-data ResourceName = Asdf
-  deriving (Eq, Ord)
-
-data State = State
-  { sConfig :: TM.Config
-  }
 
 myApp :: B.App () () ResourceName
 myApp = B.App
