@@ -10,12 +10,15 @@
 -- 'Nothing' into 'False'.
 
 module TaskMachine.DateExpr
-  ( BoolExpr
+  (
+  -- * Boolean expressions
+    BoolExpr
   , parseBoolExpr
   , evalBoolExpr
   , evalBoolExpr'
   , findNext
   , findWithin
+  -- * Integer expressions
   , IntExpr
   , parseIntExpr
   , evalIntExpr

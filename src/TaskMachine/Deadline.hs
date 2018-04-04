@@ -33,7 +33,7 @@ data Deadline
   | DExpression TM.BoolExpr Duration
 
 -- | Find the next date of the 'Deadline' that's important for a certain day.
--- This returns a 'Just' when the day lies within the duration specified.
+-- This returns a @Just@ when the day lies within the duration specified.
 --
 -- If no duration is specified in a 'DFixed' deadline, all days before the deadline,
 -- including the deadline itself, are important (i. e. the duration is infinite).
