@@ -30,6 +30,8 @@ dependencies:
 - time
 - unix
 - vty
+- hspec
+- QuickCheck
   #- containers
   #- unordered-containers
   #- transformers
