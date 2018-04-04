@@ -1,10 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+-- | Parse and evaluate day-based expressions.
+-- An expression can be evaluated for any given day.
+--
+-- Evaluated expressions return 'Nothing' on impossible mathematical
+-- operations, for example division by 0.
+--
+-- For 'BoolExpr's, use the 'evalBoolExpr'' variant to automatically turn
+-- 'Nothing' into 'False'.
+
 module TaskMachine.DateExpr
   ( BoolExpr
   , parseBoolExpr
   , evalBoolExpr
+  , evalBoolExpr'
   , findNext
+  , findWithin
   , IntExpr
   , parseIntExpr
   , evalIntExpr
@@ -25,6 +36,7 @@ import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer     as L
 import           Text.Megaparsec.Expr
 
+-- | An expression that returns a 'Bool' when evaluated.
 data BoolExpr
   = BValue     Bool
   | BStatement DateStatement
@@ -43,6 +55,7 @@ data DateStatement
   | IsEaster -- same as: easter == 0
   deriving (Show)
 
+-- | An expression that returns an 'Integer' when evaluated.
 data IntExpr
   = IValue    Integer
   | ISDate    SpecialDate
@@ -66,22 +79,39 @@ data SpecialDate
   | SEaster
   deriving (Show)
 
+-- | Parse a 'BoolExpr' from a string.
 parseBoolExpr :: String -> Maybe BoolExpr
 parseBoolExpr = parseMaybe boolExpr
 
+-- | Parse an 'IntExpr' from a string.
 parseIntExpr :: String -> Maybe IntExpr
 parseIntExpr = parseMaybe intExpr
 
-findNext :: BoolExpr -> Day -> Int -> Maybe Day
-findNext expr start duration =
+-- | Find the next day where the expression evaluates to @True@.
+-- If no day could be found, returns @Nothing@.
+--
+-- This function uses 'evalBoolExpr'' to evaluate boolean expressions.
+findNext :: Day -> Int -> BoolExpr -> Maybe Day
+findNext start duration expr =
   let possibleDays = take duration $ iterate (addDays 1) start
-      checkDay = fromMaybe False . evalBoolExpr expr
-  in  find checkDay possibleDays
+  in  find (evalBoolExpr' expr) possibleDays
+
+-- | Returns a list of days where the expression evaluates to @True@.
+--
+-- This function uses 'evalBoolExpr'' to evaluate boolean expressions.
+findWithin :: Day -> Int -> BoolExpr -> [Day]
+findWithin start duration expr =
+  let possibleDays = take duration $ iterate (addDays 1) start
+  in  filter (evalBoolExpr' expr) possibleDays
 
 {-
  - Evaluating expressions
  -}
 
+-- | Evaluates a 'BoolExpr' for a given day.
+--
+-- Returns @Nothing@ if the expression contains any 'IntExpr'
+-- that evaluates to @Nothing@ (i. e. contains a mathematical impossibility).
 evalBoolExpr :: BoolExpr -> Day -> Maybe Bool
 evalBoolExpr (BValue v)     _ = pure v
 evalBoolExpr (BStatement s) d = pure $ evalDateStatement s d
@@ -92,6 +122,13 @@ evalBoolExpr (BSame    a b) d = (==) <$> evalBoolExpr a d <*> evalBoolExpr b d
 evalBoolExpr (BEqual   a b) d = (==) <$> evalIntExpr a d <*> evalIntExpr b d
 evalBoolExpr (BGreater a b) d = (>)  <$> evalIntExpr a d <*> evalIntExpr b d
 evalBoolExpr (BLess    a b) d = (<)  <$> evalIntExpr a d <*> evalIntExpr b d
+
+-- | A variant of 'evalBoolExpr' that evaluates to False when the
+-- result of the evaluation is @Nothing@.
+--
+-- @'evalBoolExpr'' expr = 'fromMaybe' 'False' . 'evalBoolExpr' expr@
+evalBoolExpr' :: BoolExpr -> Day -> Bool
+evalBoolExpr' expr = fromMaybe False . evalBoolExpr expr
 
 evalDateStatement :: DateStatement -> Day -> Bool
 evalDateStatement IsLeapYear d = isLeapYear $ year d
@@ -107,6 +144,9 @@ unlessSecondIsZero f a b d = do
   guard $ y /= 0
   return $ f x y
 
+-- | Evaluates an 'IntExpr' for a given day.
+--
+-- Returns a @Nothing@ when a division by 0 or modulo 0 occurs.
 evalIntExpr :: IntExpr -> Day -> Maybe Integer
 evalIntExpr (IValue v)      _ = pure v
 evalIntExpr (ISDate s)      d = pure $ evalSpecialDate s d
