@@ -55,19 +55,25 @@ prop_ParseComplicated a b c d e =
  - BoolExpr properties
  -}
 
-prop_ParseLeapYears :: Integer -> Property
-prop_ParseLeapYears a =
-  let formula = "((year%400 == 0) || ((year%4 == 0) && (year%100 != 0))) == isleapyear"
+prop_FindWeekends :: Integer -> Property
+prop_FindWeekends a =
+  let formula = "(weekday == saturday || weekday == sunday) == isweekend"
+  in  parseEvalBool formula (toDay a) === Just True
+
+prop_FindLeapYears :: Integer -> Property
+prop_FindLeapYears a =
+  let formula = "(year%400 == 0 || (year%4 == 0 && year%100 != 0)) == isleapyear"
   in  parseEvalBool formula (toDay a) === Just True
 
 testDateExpr :: SpecWith ()
 testDateExpr = describe "Date expressions" $ do
   describe "IntExpr" $ do
-    it "parses integers" $ property prop_ParseInteger
-    it "parses addition and subtraction" $ property prop_ParseAddSub
-    it "parses multiplication and division" $ property prop_ParseMultDiv
-    it "parses a complicated equation" $ property prop_ParseComplicated
+    it "parses integers"                       $ property prop_ParseInteger
+    it "evaluates addition and subtraction"    $ property prop_ParseAddSub
+    it "evaluates multiplication and division" $ property prop_ParseMultDiv
+    it "evaluates a complicated equation"      $ property prop_ParseComplicated
   describe "BoolExpr" $ do
     it "parses \"true\""  $ parseEvalBool "true"  anyDay `shouldBe` Just True
     it "parses \"false\"" $ parseEvalBool "false" anyDay `shouldBe` Just False
-    it "parses leap years" $ property prop_ParseLeapYears
+    it "finds weekends"   $ property prop_FindWeekends
+    it "finds leap years" $ property prop_FindLeapYears
