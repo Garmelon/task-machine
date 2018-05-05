@@ -9,22 +9,14 @@
 
 module TaskMachine.Task
   ( Task(..)
-  , Subtask(..)
+  , TaskID
   ) where
 
 import qualified Data.Text            as T
 
 import qualified TaskMachine.DateExpr as TM
 import qualified TaskMachine.Deadline as TM
-
-type SubtaskID = Integer
-
-data Subtask = Subtask
-  { subID               :: SubtaskID
-  , subLabel            :: T.Text
-  , subRepetitionsTotal :: Integer
-  , subRepetitionsDone  :: Integer
-  }
+import qualified TaskMachine.Subtask  as TM
 
 type TaskID = Integer
 
@@ -34,7 +26,14 @@ data Task = Task
   , taskFormula     :: Maybe TM.IntExpr
   , taskDescription :: T.Text
   , taskDetails     :: T.Text
-  , taskSubtasks    :: [Subtask]
+  , taskSubtasks    :: [TM.Subtask]
+  }
+
+data EmptyTask = EmptyTask
+  { etaskID          :: TaskID
+  , etaskFormula     :: Maybe TM.IntExpr
+  , etaskDescription :: T.Text
+  , etaskDetails     :: T.Text
   }
 
 {-
