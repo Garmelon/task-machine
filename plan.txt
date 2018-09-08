@@ -1,3 +1,76 @@
+Inspired by https://github.com/todotxt/todo.txt
+
+-----< Basic concept >-----
+The program loads and operates on one todo file at a time.
+A todo file is a text file where (with a few exceptions) every line is one todo item.
+
+-----< Functionality >-----
+- load file (parsing)
+- save file
+
+- prune completed tasks
+
+- "running tasks":
+Two-line structure that contains:
+1. A line to determine when, and set variables (both using calendar formulas)
+2. A "task recipe" that can use $variables (for birthdays etc.)
+Running tasks are computed in the order they appear in the file.
+
+-----< How it works >-----
+1. $ todo work.todo
+2. load the entire file
+	2.1 parse lines
+	2.2 preserve structuring of the file: empty lines, comments, order
+	2.3 if there's any errors, abort instead of possibly overwriting the file with wrong data later
+3. calculate any running tasks
+	3.1 look at the last-calculated date, current date and task duration
+	3.2 calculate new tasks and append them to the file
+	3.3 update last-calculated date of the task
+	3.4 save updates
+4. present user interface (TUI)
+	4.1 show tasks
+	4.2 search and order tasks
+	4.3 check tasks
+	4.4 Optional: delete tasks
+	4.5 Optional: create new tasks
+	4.5 Optional: edit existing tasks (modify text, priority, ...)
+5. overwrite file with new changes
+	5.1 instant mode
+		5.1.1 after initial running task calculation
+		5.1.2 whenever any task was changed (checked, edited, deleted, ...)
+	5.2 deferred mode
+		5.2.1 save on user save action
+		5.2.2 save on close
+	5.3 default mode: instant mode?
+
+-----< The file format >-----
+normal tasks:
+[x] [priority] [[completion-date] creation-date] text
+where completion-date can only be specified if the task was actually completed
+
+running tasks:
+# [running-date] when-formula template
+
+text:
+- may include any amount of +projects and @contexts
+	(+projects and @contexts are case insensitive)
+- may include key:value specifiers
+	(key and value must consist of non-whitespace characters which are not colons)
+	(keys are case insensitive too)
+
+template:
+- consists of any string
+- may include {expressions} which are when-formulas
+	(if the when-formula returns a date, the expression is replaced by its YYYY-MM-DD representation)
+	(if the when-formula returns a number, the expression is replaced by that number)
+	(if the when-formula returns a boolean, the expression is replaced by "yes" or "no")
+
+-----< Examples/Testing >-----
+The program should work with all https://github.com/todotxt/todo.txt compliant todo files.
+"Running tasks" are merely an extension of the todo format.
+They use a syntax similar to what I expect comments would look in todo.txt 2.0.
+In todo.txt compliant programs, they simply show up as not completed tasks.
+
 Starting the program
  - read command line options
  - export default config
