@@ -1,6 +1,5 @@
 -- | Read, parse and write files in the <https://github.com/todotxt/todo.txt todo.txt> format.
 
-
 module TaskMachine.Todotxt.Dates
   ( Dates()
   , showDates
