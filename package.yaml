@@ -23,6 +23,7 @@ dependencies:
 - base >= 4.7 && < 5
 - brick
 - ConfigFile
+- containers
 - megaparsec
 - optparse-applicative
 - sqlite-simple
@@ -33,7 +34,6 @@ dependencies:
 - vty
 - hspec
 - QuickCheck
-  #- containers
   #- unordered-containers
   #- transformers
   #- async
