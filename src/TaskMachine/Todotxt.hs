@@ -15,6 +15,7 @@ module TaskMachine.Todotxt
   , priorityToChar
   , charToPriority
   -- * Parsing
+  , Parser
   , task
   , tasks
   , day
