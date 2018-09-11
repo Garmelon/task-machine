@@ -5,6 +5,7 @@ module TaskMachine.Todotxt
   -- * Tasks
     Task(..)
   , formatTask
+  , parseTasks
   -- * Creation and deletion dates
   , Dates(..)
   , formatDates
@@ -14,6 +15,8 @@ module TaskMachine.Todotxt
   , priorityToChar
   , charToPriority
   -- * Parsing
+  , task
+  , tasks
   , day
   , dates
   , priorityChar
@@ -46,13 +49,10 @@ formatDates (CoCrDate cr co) = show cr ++ " " ++ show co
 {- Dates parsing -}
 
 day :: Parser Day
-day = label "date" $ do
-  y <- integer
-  void $ char '-'
-  m <- int
-  void $ char '-'
-  d <- int
-  pure $ fromGregorian y m d
+day = label "date" $ fromGregorian
+    <$> integer
+    <*> (char '-' *> int)
+    <*> (char '-' *> int)
   where
     integer :: Parser Integer
     integer = read <$> count 4 digitChar
@@ -124,6 +124,9 @@ formatTask (Task done prio dates desc)
   ++ maybe "" ((++" ") . formatDates) dates
   ++ desc
 
+parseTasks :: FilePath -> String -> Either (ParseError Char Void) [Task]
+parseTasks = parse tasks -- hehe
+
 {- Task parsing -}
 
 andSpace :: Parser a -> Parser a
@@ -142,9 +145,11 @@ untilEndOfLine :: Parser String
 untilEndOfLine = takeWhile1P (Just "description") (/='\n')
 
 task :: Parser Task
-task = do
-  taskCompleted   <- boolParse  (andSpace completed)
-  taskPriority    <- maybeParse (andSpace priority)
-  taskDates       <- maybeParse (andSpace dates)
-  taskDescription <- untilEndOfLine
-  pure $ Task taskCompleted taskPriority taskDates taskDescription
+task =   Task
+     <$> boolParse  (andSpace completed)
+     <*> maybeParse (andSpace priority)
+     <*> maybeParse (andSpace dates)
+     <*> untilEndOfLine
+
+tasks :: Parser [Task]
+tasks = many $ task <* (eof <|> void (char '\n'))

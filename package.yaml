@@ -24,6 +24,7 @@ dependencies:
 - brick
 - containers
 - megaparsec
+- optparse-applicative
 - time
 - vector
 - vty
@@ -31,7 +32,6 @@ dependencies:
 - hspec
 - QuickCheck
   #- ConfigFile
-  #- optparse-applicative
   #- sqlite-simple
   #- text
   #- unix

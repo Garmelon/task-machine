@@ -7,7 +7,7 @@ module TaskMachine.UI where
 import qualified Brick                as B
 import qualified Brick.AttrMap        as B
 import qualified Brick.Widgets.List   as B
-import           qualified Data.Vector as V
+import qualified Data.Vector          as V
 import qualified Graphics.Vty         as VTY
 
 import           TaskMachine.TaskList
@@ -51,6 +51,9 @@ data UIState = UIState
   { taskList       :: B.List RName LTask
   , invisibleTasks :: V.Vector LTask
   }
+
+startUIState :: V.Vector LTask -> UIState
+startUIState = undefined
 
 startState :: UIState
 startState = UIState (B.list RTaskList V.empty 1) V.empty
