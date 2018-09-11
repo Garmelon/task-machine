@@ -1,7 +1,7 @@
 import           Test.Hspec
 
-import Tests.DateExpr
+import           Tests.Todotxt
 
 main :: IO ()
 main = hspec $ do
-  testDateExpr
+  testTodotxt
