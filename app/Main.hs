@@ -6,9 +6,9 @@ import           Control.Monad
 import qualified Brick                as B
 import qualified Options.Applicative  as O
 
-import           TaskMachine.TaskList
-import           TaskMachine.Todotxt
+import           TaskMachine.LTask
 import           TaskMachine.UI
+import           TaskMachine.UI.Types
 
 data Options = Options
   { oTodofile :: FilePath
@@ -36,5 +36,4 @@ main = do
   result <- loadLTasks (oTodofile o)
   case result of
     Left parseError -> putStrLn parseError
-    --Right tasks -> mapM_ (putStrLn . formatTask . ltaskTask) tasks
-    Right tasks -> mapM_ (print . ltaskTask) tasks
+    Right tasks -> void $ B.defaultMain (myApp defaultTheme) (startUIState tasks)

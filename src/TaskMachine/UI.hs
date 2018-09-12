@@ -1,16 +1,20 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module TaskMachine.UI where
 
 --import           Data.Monoid
 --
-import qualified Brick                as B
-import qualified Brick.AttrMap        as B
-import qualified Brick.Widgets.List   as B
-import qualified Data.Vector          as V
-import qualified Graphics.Vty         as VTY
+import qualified Brick                   as B
+import qualified Brick.Themes             as B
+import qualified Brick.Widgets.Core      as B
+import qualified Brick.Widgets.List      as B
+import qualified Data.Vector             as V
+import qualified Graphics.Vty            as VTY
 
-import           TaskMachine.TaskList
+import           TaskMachine.LTask
+import           TaskMachine.Todotxt
+import           TaskMachine.UI.TaskList
+import           TaskMachine.UI.Types
 --import qualified Database.SQLite.Simple    as DB
 --import qualified Brick.Themes         as B
 --
@@ -44,28 +48,19 @@ Edit _____________________________
 --  * warn if file only readable
 -- [_] display loaded tasks in UI
 
-data RName = RTaskList
-  deriving (Eq, Ord)
+drawUIState :: UIState -> [B.Widget RName]
+drawUIState UIState{..} = [B.renderList renderLTask True taskList]
 
-data UIState = UIState
-  { taskList       :: B.List RName LTask
-  , invisibleTasks :: V.Vector LTask
-  }
-
-startUIState :: V.Vector LTask -> UIState
-startUIState = undefined
-
-startState :: UIState
-startState = UIState (B.list RTaskList V.empty 1) V.empty
-
-myApp :: B.App UIState () RName
-myApp = B.App
-  { B.appDraw         = const []
+myApp :: B.Theme -> B.App UIState () RName
+myApp theme = B.App
+  { B.appDraw         = drawUIState
   , B.appChooseCursor = B.neverShowCursor
   , B.appHandleEvent  = B.resizeOrQuit
   , B.appStartEvent   = pure
-  , B.appAttrMap      = const $ B.attrMap VTY.defAttr []
+  , B.appAttrMap      = const $ attrMap
   }
+  where
+    attrMap = B.themeToAttrMap theme
 
 --  { uiConfig       :: TM.Config
 --  , uiDBConnection :: DB.Connection
