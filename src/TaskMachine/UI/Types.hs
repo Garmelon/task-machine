@@ -6,8 +6,12 @@
 
 module TaskMachine.UI.Types
   ( RName(..)
+  , BigRing(..)
+  , SmallRing(..)
   , UIState(..)
   , startUIState
+  , bigFocusNext, bigFocusPrev
+  , smallFocusNext, smallFocusPrev
   , defaultTheme
   ) where
 
@@ -24,6 +28,7 @@ import           TaskMachine.LTask
 data RName
   = RSearchEdit
   | RTaskList
+  | RTaskEdit
   | RNewEdit
   deriving (Eq, Show, Ord)
 
@@ -74,6 +79,18 @@ startUIState ltasks = UIState
   , taskEdit       = Nothing
   , newEdit        = B.editor RNewEdit (Just 1) ""
   }
+
+bigFocusNext :: UIState -> UIState
+bigFocusNext s = s{focus=B.focusNext (focus s)}
+
+bigFocusPrev :: UIState -> UIState
+bigFocusPrev s = s{focus=B.focusPrev (focus s)}
+
+smallFocusNext :: UIState -> UIState
+smallFocusNext s = s{focusTopBar=B.focusNext (focusTopBar s)}
+
+smallFocusPrev :: UIState -> UIState
+smallFocusPrev s = s{focusTopBar=B.focusPrev (focusTopBar s)}
 
 defaultTheme :: B.Theme
 defaultTheme = B.newTheme VTY.defAttr
