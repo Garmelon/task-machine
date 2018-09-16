@@ -11,7 +11,6 @@ import Data.List
 import Data.Function
 
 import qualified Data.Vector         as V
-import           Text.Megaparsec
 
 import           TaskMachine.Todotxt
 
@@ -30,11 +29,11 @@ loadLTasks :: FilePath -> IO (Either String (V.Vector LTask))
 loadLTasks file = do
   content <- readFile file
   case parseTasks file content of
-    Right tasks     -> pure $ Right $ V.fromList $ fromTasks tasks
+    Right taskList     -> pure $ Right $ V.fromList $ fromTasks taskList
     Left parseError -> pure $ Left $ show parseError
 
 saveLTasks :: V.Vector LTask -> FilePath -> IO ()
 saveLTasks ltasks file = do
-  let tasks = map ltaskTask $ sortBy (compare `on` ltaskNumber) $ V.toList ltasks
-      text = unlines $ map formatTask tasks
+  let taskList = map ltaskTask $ sortBy (compare `on` ltaskNumber) $ V.toList ltasks
+      text = unlines $ map formatTask taskList
   writeFile file text

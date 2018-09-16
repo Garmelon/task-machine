@@ -9,12 +9,8 @@ module TaskMachine.UI.Colortest where
 import           Control.Monad
 import           Data.List
 
-import qualified Brick              as B
-import qualified Brick.Focus        as B
-import qualified Brick.Themes       as B
-import qualified Brick.Widgets.List as B
-import qualified Data.Vector        as V
-import qualified Graphics.Vty       as VTY
+import qualified Brick         as B
+import qualified Graphics.Vty  as VTY
 
 colors :: [(String, VTY.Color)]
 colors =
@@ -50,14 +46,14 @@ toName :: String -> String -> String -> B.AttrName
 toName a b c = B.attrName a <> B.attrName b <> B.attrName c
 
 useStyles :: [VTY.Style] -> VTY.Attr -> VTY.Attr
-useStyles styles = foldr (.) id $ map (flip VTY.withStyle) styles
+useStyles = foldr ((.) . flip VTY.withStyle) id
 
 attrMap :: B.AttrMap
 attrMap = B.attrMap VTY.defAttr $ do
   (fgName, fgColor) <- colors
   (bgName, bgColor) <- colors
   styleList <- subsequences styles
-  let styleName = concat $ map fst styleList
+  let styleName = concatMap fst styleList
       name   = toName styleName bgName fgName
       fgAttr = VTY.withForeColor VTY.defAttr fgColor
       bgAttr = VTY.withBackColor fgAttr      bgColor
@@ -72,7 +68,8 @@ cw style = B.vBox $ B.str (' ':style) : do
     let name = toName style bgName fgName
     pure $ B.withAttr name $ B.str "Hi"
 
-testWidget = B.vBox $
+testWidget :: B.Widget n
+testWidget = B.vBox
   [ B.hBox [cw "", cw "standout"]
   , B.hBox [cw "", cw "underline"]
 --  , B.hBox [cw "", cw "reverseVideo"]

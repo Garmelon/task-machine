@@ -10,7 +10,7 @@ import           TaskMachine.LTask
 import           TaskMachine.UI
 import           TaskMachine.UI.Types
 
-data Options = Options
+newtype Options = Options
   { oTodofile :: FilePath
   } deriving (Show)
 
@@ -24,11 +24,9 @@ opts = pure Options
       )
 
 optsInfo :: O.ParserInfo Options
-optsInfo = O.info (opts <**> O.helper)
-  (  O.fullDesc
+optsInfo = O.info (opts <**> O.helper) O.fullDesc
   -- <> O.progDesc "program description"
   -- <> O.header "help header"
-  )
 
 main :: IO()
 main = do

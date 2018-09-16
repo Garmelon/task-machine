@@ -6,13 +6,8 @@ module TaskMachine.UI where
 --
 import qualified Brick                   as B
 import qualified Brick.Themes             as B
-import qualified Brick.Widgets.Core      as B
 import qualified Brick.Widgets.List      as B
-import qualified Data.Vector             as V
-import qualified Graphics.Vty            as VTY
 
-import           TaskMachine.LTask
-import           TaskMachine.Todotxt
 import           TaskMachine.UI.TaskList
 import           TaskMachine.UI.Types
 --import qualified Database.SQLite.Simple    as DB
@@ -49,7 +44,7 @@ Edit _____________________________
 -- [_] display loaded tasks in UI
 
 drawUIState :: UIState -> [B.Widget RName]
-drawUIState UIState{..} = [B.renderList renderLTask True taskList]
+drawUIState UIState{..} = [B.renderList (renderLTask taskEdit) True taskList]
 
 myApp :: B.Theme -> B.App UIState () RName
 myApp theme = B.App
@@ -57,7 +52,7 @@ myApp theme = B.App
   , B.appChooseCursor = B.neverShowCursor
   , B.appHandleEvent  = B.resizeOrQuit
   , B.appStartEvent   = pure
-  , B.appAttrMap      = const $ attrMap
+  , B.appAttrMap      = const attrMap
   }
   where
     attrMap = B.themeToAttrMap theme

@@ -32,7 +32,6 @@ import           Data.Set              as Set
 import           Data.Time.Calendar
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
-import           Text.Megaparsec.Error
 
 type Parser = Parsec Void String
 
@@ -119,10 +118,10 @@ data Task = Task
 --  show = formatTask
 
 formatTask :: Task -> String
-formatTask (Task done prio dates desc)
+formatTask (Task done prio tDates desc)
   =  (if done then "x " else "")
   ++ maybe "" ((++" ") . formatPriority) prio
-  ++ maybe "" ((++" ") . formatDates) dates
+  ++ maybe "" ((++" ") . formatDates) tDates
   ++ desc
 
 parseTasks :: FilePath -> String -> Either (ParseError Char Void) [Task]
