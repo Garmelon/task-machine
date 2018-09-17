@@ -1,0 +1,2 @@
+-[ <priority>][ d<due date>][ c<creation date>] <description>
+x[<completion date>][ <priority>][ d<due date>][ c<creation date>] <description>

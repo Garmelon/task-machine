@@ -1,5 +1,6 @@
 module Main where
 
+{-
 import           Control.Applicative
 import           Control.Monad
 
@@ -35,3 +36,7 @@ main = do
   case result of
     Left parseError -> putStrLn parseError
     Right tasks -> void $ B.defaultMain (myApp defaultTheme) (startUIState tasks)
+-}
+
+main :: IO ()
+main = putStrLn "Hello world again"

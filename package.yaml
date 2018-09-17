@@ -21,27 +21,27 @@ description:         Please see the README on Github at <https://github.com/Garm
 
 dependencies:
 - base >= 4.7 && < 5
-- brick
+  #- ConfigFile
+  #- aeson
+  #- async
+  #- brick
+  #- bytestring
 - containers
 - megaparsec
-- optparse-applicative
-- text-zipper
+  #- optparse-applicative
+  #- sqlite-simple
+  #- stm
+  #- text
+  #- text-zipper
 - time
-- vector
-- vty
+  #- transformers
+  #- unix
+  #- unordered-containers
+  #- vector
+  #- vty
 # tests
 - hspec
 - QuickCheck
-  #- ConfigFile
-  #- sqlite-simple
-  #- text
-  #- unix
-  #- unordered-containers
-  #- transformers
-  #- async
-  #- aeson
-  #- bytestring
-  #- stm
 
 library:
   source-dirs: src
