@@ -7,8 +7,8 @@ module TaskMachine.LTask
   , saveLTasks
   ) where
 
-import Data.List
-import Data.Function
+import           Data.Function
+import           Data.List
 
 import qualified Data.Vector         as V
 
@@ -29,7 +29,7 @@ loadLTasks :: FilePath -> IO (Either String (V.Vector LTask))
 loadLTasks file = do
   content <- readFile file
   case parseTasks file content of
-    Right taskList     -> pure $ Right $ V.fromList $ fromTasks taskList
+    Right taskList  -> pure $ Right $ V.fromList $ fromTasks taskList
     Left parseError -> pure $ Left $ show parseError
 
 saveLTasks :: V.Vector LTask -> FilePath -> IO ()

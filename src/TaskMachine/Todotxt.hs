@@ -16,19 +16,22 @@ module TaskMachine.Todotxt
   , charToPriority
   -- * Parsing
   , Parser
-  , task
-  , tasks
-  , day
-  , dates
-  , priorityChar
-  , priority
+  , pTask
+  , pTasks
+  , pDay
+  , pDates
+  , pPriorityChar
+  , pPriority
+  , andSpace
+  , maybeParse
+  , untilEndOfLine
   ) where
 
 import           Control.Monad
 import           Data.List.NonEmpty
 import           Data.Void
 
-import           Data.Set              as Set
+import           Data.Set             as Set
 import           Data.Time.Calendar
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
@@ -48,8 +51,8 @@ formatDates (CoCrDate cr co) = show cr ++ " " ++ show co
 
 {- Dates parsing -}
 
-day :: Parser Day
-day = label "date" $ fromGregorian
+pDay :: Parser Day
+pDay = label "date" $ fromGregorian
     <$> integer
     <*> (char '-' *> int)
     <*> (char '-' *> int)
@@ -59,13 +62,13 @@ day = label "date" $ fromGregorian
     int :: Parser Int
     int = read <$> count 2 digitChar
 
-dates :: Parser Dates
-dates = try datesCrCo <|> datesCr
+pDates :: Parser Dates
+pDates = try datesCrCo <|> datesCr
   where
     datesCrCo :: Parser Dates
-    datesCrCo = CoCrDate <$> (day <* char ' ') <*> day
+    datesCrCo = CoCrDate <$> (pDay <* char ' ') <*> pDay
     datesCr :: Parser Dates
-    datesCr = CrDate <$> day
+    datesCr = CrDate <$> pDay
 
 {- Priority -}
 
@@ -93,16 +96,16 @@ formatPriority p = '(' : priorityToChar p : ")"
 
 {- Priority parsing -}
 
-priorityChar :: Parser Priority
-priorityChar = do
+pPriorityChar :: Parser Priority
+pPriorityChar = do
   c <- anyChar
   case charToPriority c of
     Just p -> pure p
     Nothing -> failure (Just $ Tokens $ c :| [])
                        (Set.singleton $ Label $ 'p' :| "riority character")
 
-priority :: Parser Priority
-priority = char '(' *> priorityChar <* char ')'
+pPriority :: Parser Priority
+pPriority = char '(' *> pPriorityChar <* char ')'
 
 {- Task -}
 
@@ -118,14 +121,14 @@ data Task = Task
 --  show = formatTask
 
 formatTask :: Task -> String
-formatTask (Task done prio tDates desc)
+formatTask (Task done prio dates desc)
   =  (if done then "x " else "")
   ++ maybe "" ((++" ") . formatPriority) prio
-  ++ maybe "" ((++" ") . formatDates) tDates
+  ++ maybe "" ((++" ") . formatDates) dates
   ++ desc
 
 parseTasks :: FilePath -> String -> Either (ParseError Char Void) [Task]
-parseTasks = parse tasks -- hehe
+parseTasks = parse pTasks -- hehe
 
 {- Task parsing -}
 
@@ -144,12 +147,12 @@ maybeParse p = (Just <$> try p) <|> pure Nothing
 untilEndOfLine :: Parser String
 untilEndOfLine = takeWhile1P (Just "description") (/='\n')
 
-task :: Parser Task
-task =   Task
+pTask :: Parser Task
+pTask =   Task
      <$> boolParse  (andSpace completed)
-     <*> maybeParse (andSpace priority)
-     <*> maybeParse (andSpace dates)
+     <*> maybeParse (andSpace pPriority)
+     <*> maybeParse (andSpace pDates)
      <*> untilEndOfLine
 
-tasks :: Parser [Task]
-tasks = many $ task <* (eof <|> void (char '\n'))
+pTasks :: Parser [Task]
+pTasks = many $ pTask <* (eof <|> void (char '\n'))

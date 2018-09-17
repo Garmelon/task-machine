@@ -44,21 +44,24 @@ Edit _____________________________
 --  * warn if file only readable
 -- [_] display loaded tasks in UI
 
+drawBaseLayer :: UIState -> B.Widget RName
+drawBaseLayer s = B.vBox [placeholderTopBar, renderTaskList s, placeholderNewTask]
+
 drawUIState :: UIState -> [B.Widget RName]
-drawUIState s =
-  let wTopBar = const placeholderTopBar
-      wTaskList = renderTaskList (taskList s) (taskEdit s)
-      wNewTask = const placeholderNewTask
-  in  pure $ case B.focusGetCurrent (focus s) of
-        Nothing           -> B.vBox [wTopBar False, wTaskList False, wNewTask False] -- should never happen
-        (Just BRTopBar)   -> B.vBox [wTopBar True,  wTaskList False, wNewTask False]
-        (Just BRTaskList) -> B.vBox [wTopBar False, wTaskList True,  wNewTask False]
-        (Just BRNewTask)  -> B.vBox [wTopBar False, wTaskList False, wNewTask True ]
+drawUIState s@UIState{errorPopup=Just p} = [renderPopup p, drawBaseLayer s]
+drawUIState s                            = [drawBaseLayer s]
 
 updateUIState :: UIState -> B.BrickEvent RName () -> B.EventM RName (B.Next UIState)
+-- Closing any popups
+updateUIState s@UIState{errorPopup=Just _} (B.VtyEvent (VTY.EvKey VTY.KEnter [])) = B.continue s{errorPopup=Nothing}
+updateUIState s@UIState{errorPopup=Just _} (B.VtyEvent (VTY.EvKey VTY.KEsc   [])) = B.continue s{errorPopup=Nothing}
+--updateUIState s@UIState{errorPopup=Just p} (B.VtyEvent e) = do
+--  newPopup <- handlePopupEvent e p
+--  B.continue s{errorPopup=Just newPopup}
+-- If there's no password
 updateUIState s e =
   case B.focusGetCurrent (focus s) of
-    Nothing           -> undefined
+    Nothing           -> B.halt s
     (Just BRTopBar)   -> placeholderUpdate s e
     (Just BRTaskList) -> updateTaskList s e
     (Just BRNewTask)  -> placeholderUpdate s e

@@ -25,6 +25,7 @@ dependencies:
 - containers
 - megaparsec
 - optparse-applicative
+- text-zipper
 - time
 - vector
 - vty
