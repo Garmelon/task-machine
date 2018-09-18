@@ -37,7 +37,7 @@ dependencies:
   #- transformers
   #- unix
   #- unordered-containers
-  #- vector
+- vector
   #- vty
 # tests
 - hspec
