@@ -1,0 +1,13 @@
+- (A) Call Mom @Phone +Family
+- (A) Schedule annual checkup +Health
+- (B) Outline chapter 5 +Novel @Computer
+- (C) Add cover sheets @Office +TPSReports
+- (D) correct priority is highlighted
+- (d) incorrect priority is not highlighted
+- A simple key:value field
+- Most of these example tasks were adapted from url:http://todotxt.org/todo.txt
+- Plan backyard herb garden @Home
+- Research self-publishing services +Novel @Computer
+- d2018-09-20 Pick up milk @GroceryStore
+x Download Todo.txt mobile app @Phone
+x2018-09-18 c2018-09-17 A task with completion date and creation date
