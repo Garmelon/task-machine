@@ -24,11 +24,11 @@ dependencies:
   #- ConfigFile
   #- aeson
   #- async
-  #- brick
+- brick
   #- bytestring
 - containers
 - megaparsec
-  #- optparse-applicative
+- optparse-applicative
   #- sqlite-simple
   #- stm
   #- text
@@ -38,7 +38,7 @@ dependencies:
   #- unix
   #- unordered-containers
 - vector
-  #- vty
+- vty
 # tests
 - hspec
 - QuickCheck

@@ -55,9 +55,9 @@ loadLTasks file = do
   content <- readFile file
   case parse pTasks file content of
     Right taskList  -> pure $ Right $ V.fromList $ fromTasks taskList
-    Left parseError -> pure $ Left $ show parseError
+    Left parseError -> pure $ Left $ parseErrorPretty parseError
 
-saveLTasks :: V.Vector LTask -> FilePath -> IO ()
-saveLTasks ltasks file = do
+saveLTasks :: FilePath -> V.Vector LTask -> IO ()
+saveLTasks file ltasks = do
   let text = formatTasks $ toTasks $ V.toList ltasks
   writeFile file text

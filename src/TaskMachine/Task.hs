@@ -24,8 +24,8 @@ module TaskMachine.Task
   , formatTask
   , formatTasks
   , formatDate
-  , formatDueDate
-  , formatCreationDate
+  , formatDue
+  , formatCreated
   , formatCompletion
   , formatPriority
   , formatDescription
@@ -42,8 +42,8 @@ module TaskMachine.Task
   , pPriorityChar
   , pPriority
   , pDate
-  , pDueDate
-  , pCreationDate
+  , pDue
+  , pCreated
   , pDescription
   , pSnippet
   ) where
@@ -61,7 +61,7 @@ import           Text.Megaparsec.Char
 
 -- | A single task
 data Task = Task
-  { taskCompleted   :: Completion
+  { taskCompletion  :: Completion
   , taskPriority    :: Maybe Priority
   , taskDue         :: Maybe Day
   , taskCreated     :: Maybe Day
@@ -77,10 +77,10 @@ data Task = Task
 -- In that case, converting the task to a string and back yields a different result.
 formatTask :: Task -> String
 formatTask t
-  =  formatCompletion (taskCompleted t) ++ " "
+  =  formatCompletion (taskCompletion t) ++ " "
   ++ maybeWithSpace formatPriority (taskPriority t)
-  ++ maybeWithSpace formatDueDate (taskDue t)
-  ++ maybeWithSpace formatCreationDate (taskCreated t)
+  ++ maybeWithSpace formatDue(taskDue t)
+  ++ maybeWithSpace formatCreated (taskCreated t)
   ++ formatDescription (taskDescription t)
   where
     maybeWithSpace :: (a -> String) -> Maybe a -> String
@@ -99,17 +99,17 @@ formatTasks = concatMap ((++"\n") . formatTask)
 formatDate :: Day -> String
 formatDate = show
 
--- | Convert a 'Day' into the due date string representation, which can be parsed by 'pDueDate'.
+-- | Convert a 'Day' into the due date string representation, which can be parsed by 'pDue'.
 --
 -- Example: @"d2018-09-08"@
-formatDueDate :: Day -> String
-formatDueDate d = 'd' : formatDate d
+formatDue :: Day -> String
+formatDue d = 'd' : formatDate d
 
--- | Convert a 'Day into the creation date string representation, which can be parsed by 'pCreationDate'.
+-- | Convert a 'Day into the creation date string representation, which can be parsed by 'pCreation.
 --
 -- Example: @"c2018-09-08"@
-formatCreationDate :: Day -> String
-formatCreationDate d = 'c' : formatDate d
+formatCreated :: Day -> String
+formatCreated d = 'c' : formatDate d
 
 {- Completion -}
 
@@ -213,13 +213,13 @@ pDate = label "date" $ fromGregorian
     int :: Parser Int
     int = read <$> count 2 digitChar
 
--- | Parse a date in the due date format (see 'formatDueDate').
-pDueDate :: Parser Day
-pDueDate = label "due date" $ char 'd' *> pDate
+-- | Parse a date in the due date format (see 'formatDue').
+pDue :: Parser Day
+pDue = label "due date" $ char 'd' *> pDate
 
--- | Parse a date in the creation date format (see 'formatCreationDate').
-pCreationDate :: Parser Day
-pCreationDate = label "creation date" $ char 'c' *> pDate
+-- | Parse a date in the creation date format (see 'formatCreated').
+pCreated :: Parser Day
+pCreated = label "creation date" $ char 'c' *> pDate
 
 -- Completion
 
@@ -263,7 +263,7 @@ pContext = char '@' *> (Context <$> wordBody)
 pKeyValue :: Parser Snippet
 pKeyValue = KeyValue <$> (keyBody <* char ':') <*> wordBody
   where
-    keyBody = takeWhile1P (Just "key character")   (not . (`elem` ": \n"))
+    keyBody = takeWhile1P (Just "key character") (not . (`elem` ": \n"))
 
 -- | Parse a 'Description' (see 'formatDescription').
 pDescription :: Parser Description
@@ -300,8 +300,8 @@ pTask
   =   Task
   <$> andSpace pCompletion
   <*> maybeParse (andSpace pPriority)
-  <*> maybeParse (andSpace pDueDate)
-  <*> maybeParse (andSpace pCreationDate)
+  <*> maybeParse (andSpace pDue)
+  <*> maybeParse (andSpace pCreated)
   <*> pDescription
 
 -- | Parse a list of 'Task's (see 'formatTasks').
