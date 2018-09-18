@@ -13,7 +13,7 @@ import qualified Brick.Widgets.Dialog as B
 import qualified Graphics.Vty         as VTY
 
 minPopupWidth :: Int
-minPopupWidth = 70
+minPopupWidth = 78
 
 {- Ok popup -}
 
@@ -24,7 +24,7 @@ popupOk title content = popupOk' title (B.str content)
 
 popupOk' :: String -> B.Widget n -> PopupOk n
 popupOk' title widget =
-  let dialog = B.dialog (Just title) (Just (0,[("Ok",())])) minPopupWidth
+  let dialog = B.dialog (Just $ " " ++ title ++ " ") (Just (0,[("Ok",())])) minPopupWidth
   in  PopupOk dialog widget
 
 renderPopupOk :: PopupOk n -> B.Widget n
