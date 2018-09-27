@@ -1,6 +1,7 @@
 module TaskMachine.UI
   ( myApp
   , startUIState
+  , loadTasks
   ) where
 
 import qualified Brick                     as B
@@ -9,14 +10,19 @@ import qualified Brick.Themes              as B
 import qualified Data.Vector               as V
 import qualified Graphics.Vty.Input.Events as VTY
 
+import           TaskMachine.LTask
 import           TaskMachine.Options
-import           TaskMachine.UI.NewTask
 import           TaskMachine.UI.Popup
 import           TaskMachine.UI.TaskList
-import           TaskMachine.UI.TopBar
 import           TaskMachine.UI.Types
 
 {- Rendering -}
+
+placeholderTopBar :: B.Widget n
+placeholderTopBar = B.str "Prune | Reload | Search: " B.<+> B.vLimit 1 (B.fill '_')
+
+placeholderNewTask :: B.Widget RName
+placeholderNewTask = B.str "New: " B.<+> B.vLimit 1 (B.fill '_')
 
 drawBaseLayer :: UIState -> B.Widget RName
 drawBaseLayer s = B.vBox [placeholderTopBar, renderTaskList True (tasks s), placeholderNewTask]
@@ -24,6 +30,17 @@ drawBaseLayer s = B.vBox [placeholderTopBar, renderTaskList True (tasks s), plac
 drawUIState :: UIState -> [B.Widget RName]
 drawUIState s@UIState{errorPopup=Just p} = [renderPopupOk p, drawBaseLayer s]
 drawUIState s                            = [drawBaseLayer s]
+
+{- Actions -}
+
+loadTasks :: UIState -> IO UIState
+loadTasks s = do
+  let file = oTodofile $ options s
+  result <- loadLTasks file
+  case result of
+    -- TODO: Improve error handling when loading files
+    Left errorMessage -> pure s{errorPopup=Just $ popupOk "Error loading tasks" errorMessage}
+    Right ltasks      -> pure s{tasks=taskList RTaskList ltasks}
 
 {- Updating the state -}
 

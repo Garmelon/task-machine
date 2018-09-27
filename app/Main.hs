@@ -10,4 +10,5 @@ import           TaskMachine.UI
 main :: IO()
 main = do
   o <- parseOptions
-  void $ B.defaultMain myApp (startUIState o)
+  state <- loadTasks $ startUIState o
+  void $ B.defaultMain myApp state
