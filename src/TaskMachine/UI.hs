@@ -16,13 +16,41 @@ import           TaskMachine.UI.TaskList
 import           TaskMachine.UI.TopBar
 import           TaskMachine.UI.Types
 
+{- Rendering -}
+
 drawBaseLayer :: UIState -> B.Widget RName
-drawBaseLayer s = B.vBox [placeholderTopBar, renderTaskList s, placeholderNewTask]
+drawBaseLayer s = B.vBox [placeholderTopBar, renderTaskList True (tasks s), placeholderNewTask]
 
 drawUIState :: UIState -> [B.Widget RName]
 drawUIState s@UIState{errorPopup=Just p} = [renderPopupOk p, drawBaseLayer s]
 drawUIState s                            = [drawBaseLayer s]
 
+{- Updating the state -}
+
+rootBehavior :: UIState -> VTY.Event -> NewState
+rootBehavior s _ = B.continue s
+
+closeBehavior :: (UIState -> VTY.Event -> NewState) -> UIState -> VTY.Event -> NewState
+closeBehavior _ s (VTY.EvKey VTY.KEsc        []) = B.halt s
+closeBehavior _ s (VTY.EvKey (VTY.KChar 'q') []) = B.halt s
+closeBehavior f s e                              = f s e -- wrapper around another behavior
+
+{-
+focusBehavior :: (UIState -> VTY.Event -> Result) -> UIState -> VTY.Event -> Result
+focusBehavior _ s (VTY.EvKey (VTY.KChar '\t') []) = B.continue $ bigFocusNext s
+focusBehavior _ s (VTY.EvKey VTY.KBackTab     []) = B.continue $ bigFocusPrev s
+focusBehavior f s e = f s e -- wrapper around another behavior
+-}
+
+selectBehavior :: UIState -> VTY.Event -> NewState
+selectBehavior s@UIState{errorPopup=Just popup} e = undefined popup s e
+selectBehavior s e = closeBehavior rootBehavior s e
+
+updateUIState :: UIState -> B.BrickEvent RName () -> NewState
+updateUIState s (B.VtyEvent e) = selectBehavior s e
+updateUIState s _              = B.continue s
+
+{-
 updateUIState :: UIState -> B.BrickEvent RName () -> B.EventM RName (B.Next UIState)
 -- Closing error popup
 updateUIState s@UIState{errorPopup=Just _} (B.VtyEvent (VTY.EvKey VTY.KEnter [])) = B.continue s{errorPopup=Nothing}
@@ -43,6 +71,7 @@ placeholderUpdate s (B.VtyEvent (VTY.EvKey VTY.KEsc         [])) = B.halt s
 placeholderUpdate s (B.VtyEvent (VTY.EvKey (VTY.KChar '\t') [])) = B.continue $ bigFocusNext s
 placeholderUpdate s (B.VtyEvent (VTY.EvKey VTY.KBackTab     [])) = B.continue $ bigFocusPrev s
 placeholderUpdate s _                                            = B.continue s
+-}
 
 {- Starting the app -}
 
@@ -60,6 +89,5 @@ startUIState o = UIState
   { options        = o
   , focus          = B.focusRing [BRTaskList, BRNewTask, BRTopBar]
   , errorPopup     = Nothing
-  , taskList       = newTaskList V.empty
-  , invisibleTasks = V.empty
+  , tasks          = taskList RTaskList V.empty
   }

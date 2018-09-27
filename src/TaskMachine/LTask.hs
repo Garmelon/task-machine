@@ -14,6 +14,7 @@ module TaskMachine.LTask
   , toTask
   , fromTasks
   , toTasks
+  , modifyLTask
   , sortLTasks
   , loadLTasks
   , saveLTasks
@@ -46,6 +47,9 @@ fromTasks = zipWith LTask (map Old [1..])
 
 toTasks :: [LTask] -> [Task]
 toTasks = map toTask . sortLTasks
+
+modifyLTask :: (Task -> Task) -> LTask -> LTask
+modifyLTask f (LTask pos task) = LTask pos (f task)
 
 sortLTasks :: [LTask] -> [LTask]
 sortLTasks = sortBy (compare `on` lPosition)

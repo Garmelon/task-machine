@@ -1,25 +1,67 @@
-{-# LANGUAGE OverloadedStrings #-}
-
-module TaskMachine.UI.TaskList where
+module TaskMachine.UI.TaskList
+  ( TaskList
+  , taskList
+  , renderTaskList
+  , taskListElements
+  , taskListFilter
+  , taskListSelectedElement
+  , taskListModify
+  ) where
 
 --import           Data.Void
 
-import qualified Brick                as B
-import qualified Brick.Widgets.List   as B
-import qualified Data.Vector          as V
-import qualified Brick.Focus          as B
-import qualified Brick.Widgets.Edit   as B
+import qualified Brick               as B
+import qualified Brick.Widgets.List  as B
+import qualified Data.Vector         as V
+--import qualified Brick.Focus          as B
+--import qualified Brick.Widgets.Edit   as B
 --import qualified Data.Text.Zipper     as T
 --import qualified Graphics.Vty         as VTY
 --import           Text.Megaparsec
 
 import           TaskMachine.LTask
-import           TaskMachine.Options
 import           TaskMachine.Task
-import           TaskMachine.UI.Types
 import           TaskMachine.UI.Task
-import           TaskMachine.UI.Popup
+--import           TaskMachine.Options
+--import           TaskMachine.UI.Popup
+--import           TaskMachine.UI.Types
 
+data TaskList n = TaskList
+  { visibleTasks   :: B.List n LTask
+  , invisibleTasks :: V.Vector LTask
+  } deriving (Show)
+
+newList :: n -> V.Vector LTask -> B.List n LTask
+newList name ltasks = B.list name ltasks 1
+
+taskList :: n -> V.Vector LTask -> TaskList n
+taskList name ltasks = TaskList{visibleTasks=newList name ltasks, invisibleTasks=V.empty}
+
+-- TODO: render while editing
+renderTaskList :: (Ord n, Show n) => Bool -> TaskList n -> B.Widget n
+renderTaskList focus tl = B.renderList (const $ renderTask . toTask) focus (visibleTasks tl)
+
+{- Managing tasks -}
+
+taskListElements :: TaskList n -> V.Vector LTask
+taskListElements tl = B.listElements (visibleTasks tl) <> invisibleTasks tl
+
+taskListFilter :: (Task -> Bool) -> TaskList n -> TaskList n
+taskListFilter f tl =
+  let (yes, no) = V.partition (f . toTask) $ taskListElements tl
+      name = B.listName (visibleTasks tl)
+      list = newList name yes
+  in  TaskList{visibleTasks=list, invisibleTasks=no}
+
+taskListSelectedElement :: TaskList n -> Maybe Task
+taskListSelectedElement tl = toTask . snd <$> B.listSelectedElement (visibleTasks tl)
+
+taskListModify :: (Task -> Task) -> TaskList n -> TaskList n
+taskListModify f tl =
+  let list = B.listModify (modifyLTask f) (visibleTasks tl)
+  in  tl{visibleTasks=list}
+
+{-
 {- Managing the tasks -}
 
 allTasks :: UIState -> V.Vector LTask
@@ -68,8 +110,12 @@ renderTaskList s =
 
 {- Updating state -}
 
+taskListBehavior :: UIState -> VTY.Event -> NewState
+taskListBehavior = undefined
+
 updateTaskList :: UIState -> B.BrickEvent RName () -> B.EventM RName (B.Next UIState)
 updateTaskList = undefined
+-}
 
 {-
 widgetPriority :: B.AttrName -> Maybe Priority -> B.Widget n

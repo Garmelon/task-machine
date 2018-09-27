@@ -15,23 +15,26 @@ module TaskMachine.UI.Types
   --, handlePopupEvent
   -- * UI state
   , UIState(..)
+  , NewState
   , bigFocusNext, bigFocusPrev
   --, smallFocusNext, smallFocusPrev
   , defaultTheme
   ) where
 
-import qualified Brick.Focus          as B
-import qualified Brick.Themes         as B
-import qualified Brick.Widgets.Dialog as B
-import qualified Brick.Widgets.Edit   as B
-import qualified Brick.Widgets.List   as B
-import qualified Data.Vector          as V
-import qualified Graphics.Vty         as VTY
+import qualified Brick                   as B
+import qualified Brick.Focus             as B
+import qualified Brick.Themes            as B
+import qualified Brick.Widgets.Dialog    as B
+import qualified Brick.Widgets.Edit      as B
+import qualified Brick.Widgets.List      as B
+import qualified Graphics.Vty            as VTY
+--import qualified Data.Vector          as V
 
-import           TaskMachine.LTask
+--import           TaskMachine.LTask
 import           TaskMachine.Options
 import           TaskMachine.UI.Popup
 import           TaskMachine.UI.Task
+import           TaskMachine.UI.TaskList
 
 -- | Resource names
 data RName
@@ -76,15 +79,17 @@ handlePopupEvent e (Popup dialog widget) = Popup <$> B.handleDialogEvent e dialo
 {- UI state -}
 
 data UIState = UIState
-  { options        :: Options -- includes todo file and other config
-  , focus          :: B.FocusRing BigRing -- focus on the top, middle or bottom part
-  , errorPopup     :: Maybe (PopupOk RName)
+  { options    :: Options -- includes todo file and other config
+  , focus      :: B.FocusRing BigRing -- focus on the top, middle or bottom part
+
+  -- popups
+  , errorPopup :: Maybe (PopupOk RName)
 
   -- tasks
-  , taskList       :: B.List RName LTask
-  , invisibleTasks :: V.Vector LTask
+  , tasks      :: TaskList RName
   }
 
+type NewState = B.EventM RName (B.Next UIState)
 
 
 
