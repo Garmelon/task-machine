@@ -11,9 +11,9 @@ import qualified Graphics.Vty.Input.Events as VTY
 
 import           TaskMachine.Options
 import           TaskMachine.UI.NewTask
+import           TaskMachine.UI.Popup
 import           TaskMachine.UI.TaskList
 import           TaskMachine.UI.TopBar
-import           TaskMachine.UI.Popup
 import           TaskMachine.UI.Types
 
 drawBaseLayer :: UIState -> B.Widget RName

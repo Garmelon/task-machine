@@ -20,6 +20,8 @@ module TaskMachine.Task
   , charToPriority
   , Description
   , Snippet(..)
+  -- * Misc stuff
+  , compareTasks
   -- * Formatting
   , formatTask
   , formatTasks
@@ -49,6 +51,7 @@ module TaskMachine.Task
   ) where
 
 import           Control.Monad
+import           Data.Function
 import qualified Data.List.NonEmpty   as NE
 import           Data.Void
 
@@ -119,7 +122,7 @@ formatCreated d = 'c' : formatDate d
 data Completion
   = Incomplete
   | Complete (Maybe Day)
-  deriving (Show)
+  deriving (Eq, Ord, Show)
 
 -- | Convert a 'Completion' to its string representation, which can be parsed by 'pCompletion'.
 --
@@ -137,7 +140,7 @@ data Priority
   | PrioH | PrioI | PrioJ | PrioK | PrioL | PrioM | PrioN
   | PrioO | PrioP | PrioQ | PrioR | PrioS | PrioT | PrioU
   | PrioV | PrioW | PrioX | PrioY | PrioZ
-  deriving (Bounded, Enum, Eq, Show, Ord)
+  deriving (Bounded, Enum, Eq, Ord, Show)
 
 -- | Convert a 'Priority' to its string representation, which can be parsed by 'pPriority'.
 --
@@ -178,7 +181,7 @@ data Snippet
   -- ^ A word of the form @key:value@.
   -- The key and value cannot contain any spaces.
   -- The key cannot contain any @":"@ characters, but the value can.
-  deriving (Eq, Show)
+  deriving (Show)
 
 -- | Convert a 'Description' into its string representation, which can be parsed by 'pDescription'.
 --
@@ -226,7 +229,7 @@ pCreated = label "creation date" $ char 'c' *> pDate
 -- | Parse a 'Completion' (see 'formatCompletion').
 pCompletion :: Parser Completion
 pCompletion =   Incomplete <$ char '-'
-            <|> char 'x' *> (label "completion date" $ Complete <$> maybeParse pDate)
+            <|> char 'x' *> label "completion date" (Complete <$> maybeParse pDate)
 
 -- Priority
 
@@ -307,3 +310,22 @@ pTask
 -- | Parse a list of 'Task's (see 'formatTasks').
 pTasks :: Parser [Task]
 pTasks = many pTask <* eof
+
+ {- Misc stuff -}
+
+compareTasks :: Task -> Task -> Ordering
+compareTasks a b = mconcat
+  [ compare (taskCompletion a) (taskCompletion b)
+  , compareMaybe (taskPriority a) (taskPriority b)
+  , compareMaybe (taskDue a) (taskDue b)
+  , compareDescription (taskDescription a) (taskDescription b)
+  ]
+  where
+    -- Inverted compare for Maybes: Nothing comes after Just
+    compareMaybe :: Ord a => Maybe a -> Maybe a -> Ordering
+    compareMaybe Nothing  Nothing  = EQ
+    compareMaybe (Just _) Nothing  = LT
+    compareMaybe Nothing  (Just _) = GT
+    compareMaybe (Just x) (Just y) = compare x y
+    compareDescription :: Description -> Description -> Ordering
+    compareDescription = compare `on` formatDescription

@@ -55,9 +55,9 @@ renderSnippet s                =                                  B.str $ format
 renderTask :: Task -> B.Widget n
 renderTask t = B.hBox $ catMaybes
   [ Just $ withSpace $ renderCompletion $ taskCompletion t
-  , (withSpace . renderPriority) <$> taskPriority t
-  , (withSpace . renderDue) <$> taskDue t
-  , (withSpace . renderCreated) <$> taskCreated t
+  , withSpace . renderPriority <$> taskPriority t
+  , withSpace . renderDue <$> taskDue t
+  , withSpace . renderCreated <$> taskCreated t
   , Just $ renderDescription $ taskDescription t
   ]
 

@@ -1,7 +1,7 @@
-- c2018-09-18 Sort tasks by completion, priority, due date, description
-- c2018-09-18 Quit using Esc or q
-- c2018-09-18 Offer "retry" or "quit" +dialogue - syntax error in todo file
 - c2018-09-18 Offer "retry" or "quit" +dialogue - couldn't load from todo file
 - c2018-09-18 Offer "retry" or "quit" +dialogue - couldn't save to todo file
+- c2018-09-18 Offer "retry" or "quit" +dialogue - syntax error in todo file
 - c2018-09-18 Offer to clean up file when loading (adding creation/completion dates)
 - c2018-09-18 Purge - move completed tasks to a separate file
+- c2018-09-18 Quit using Esc or q
+- c2018-09-18 Sort tasks by completion, priority, due date, description
