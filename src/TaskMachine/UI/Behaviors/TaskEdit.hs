@@ -1,6 +1,5 @@
 module TaskMachine.UI.Behaviors.TaskEdit
-  ( startEdit
-  , taskEditBehavior
+  ( taskEditBehavior
   ) where
 
 import qualified Brick                   as B
@@ -12,14 +11,6 @@ import           Text.Megaparsec
 import           TaskMachine.Task
 import           TaskMachine.UI.TaskList
 import           TaskMachine.UI.Types
-
-startEdit :: UIState -> UIState
-startEdit s =
-  case taskListSelectedElement (tasks s) of
-    Nothing -> undefined -- TODO: Add popup notification
-    Just t  ->
-      let edit = B.editor RTaskEdit (Just 1) (formatTask t)
-      in s{taskEdit=Just edit}
 
 finishEdit :: B.Editor String RName -> UIState -> UIState
 finishEdit edit s =
@@ -34,10 +25,10 @@ taskEditBehavior :: B.Editor String RName -> UIState -> VTY.Event -> NewState
 taskEditBehavior _    s (VTY.EvKey VTY.KEsc   []) = B.continue s{taskEdit=Nothing}
 taskEditBehavior edit s (VTY.EvKey VTY.KHome  []) = B.continue s{taskEdit=Just (B.applyEdit T.gotoBOL edit)}
 taskEditBehavior edit s (VTY.EvKey VTY.KEnd   []) = B.continue s{taskEdit=Just (B.applyEdit T.gotoEOL edit)}
-taskEditBehavior edit s (VTY.EvKey VTY.KEnter []) = do
+taskEditBehavior edit s (VTY.EvKey VTY.KEnter []) = B.suspendAndResume $ do
   let newState = finishEdit edit s
-  -- TODO: Save changes to file
-  B.continue newState
+  saveUIState newState
+  pure newState
 taskEditBehavior edit s e = do
   newEdit <- B.handleEditorEvent e edit
   B.continue s{taskEdit=Just newEdit}

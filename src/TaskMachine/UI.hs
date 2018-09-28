@@ -13,6 +13,7 @@ import qualified Graphics.Vty.Input.Events         as VTY
 import           TaskMachine.LTask
 import           TaskMachine.Options
 import           TaskMachine.UI.Behaviors.TaskEdit
+import           TaskMachine.UI.Behaviors.TaskList
 import           TaskMachine.UI.Popup
 import           TaskMachine.UI.TaskList
 import           TaskMachine.UI.Types
@@ -60,18 +61,6 @@ focusBehavior :: (UIState -> VTY.Event -> NewState) -> UIState -> VTY.Event -> N
 focusBehavior _ s (VTY.EvKey (VTY.KChar '\t') []) = B.continue $ bigFocusNext s
 focusBehavior _ s (VTY.EvKey VTY.KBackTab     []) = B.continue $ bigFocusPrev s
 focusBehavior f s e = f s e -- wrapper around another behavior
-
-taskListBehavior :: UIState -> VTY.Event -> NewState
--- Mark/unmark a task as completed
-taskListBehavior s (VTY.EvKey (VTY.KChar 'x') []) = undefined s
--- Delete tasks
-taskListBehavior s (VTY.EvKey (VTY.KChar 'd') []) = undefined s
--- Start editing a new task
-taskListBehavior s (VTY.EvKey (VTY.KChar 'e') []) = B.continue (startEdit s)
--- Update the task list (scroll etc.)
-taskListBehavior s e = do
-  newTasks <- updateTaskList e (tasks s)
-  B.continue s{tasks=newTasks}
 
 selectBehavior :: UIState -> VTY.Event -> NewState
 -- Deal with popup if there is one

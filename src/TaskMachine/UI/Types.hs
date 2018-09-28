@@ -19,6 +19,7 @@ module TaskMachine.UI.Types
   , bigFocusNext, bigFocusPrev
   --, smallFocusNext, smallFocusPrev
   , defaultTheme
+  , saveUIState
   ) where
 
 import qualified Brick                   as B
@@ -30,7 +31,7 @@ import qualified Brick.Widgets.List      as B
 import qualified Graphics.Vty            as VTY
 --import qualified Data.Vector          as V
 
---import           TaskMachine.LTask
+import           TaskMachine.LTask
 import           TaskMachine.Options
 import           TaskMachine.UI.Popup
 import           TaskMachine.UI.Task
@@ -180,3 +181,9 @@ defaultTheme = B.newTheme VTY.defAttr
     bg' = VTY.withBackColor none
     st' = VTY.withStyle     none
     none = VTY.defAttr
+
+saveUIState :: UIState -> IO ()
+saveUIState s = do
+  let filepath = oTodofile (options s)
+      ltasks = taskListElements (tasks s)
+  saveLTasks filepath ltasks
