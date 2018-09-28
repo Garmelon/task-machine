@@ -4,18 +4,15 @@ module TaskMachine.UI
   , loadTasks
   ) where
 
-import qualified Brick                     as B
-import qualified Brick.Focus               as B
-import qualified Brick.Themes              as B
-import qualified Brick.Widgets.Edit        as B
-import qualified Data.Text.Zipper          as T
-import qualified Data.Vector               as V
-import qualified Graphics.Vty.Input.Events as VTY
-import           Text.Megaparsec
+import qualified Brick                             as B
+import qualified Brick.Focus                       as B
+import qualified Brick.Themes                      as B
+import qualified Data.Vector                       as V
+import qualified Graphics.Vty.Input.Events         as VTY
 
 import           TaskMachine.LTask
 import           TaskMachine.Options
-import           TaskMachine.Task
+import           TaskMachine.UI.Behaviors.TaskEdit
 import           TaskMachine.UI.Popup
 import           TaskMachine.UI.TaskList
 import           TaskMachine.UI.Types
@@ -70,31 +67,11 @@ taskListBehavior s (VTY.EvKey (VTY.KChar 'x') []) = undefined s
 -- Delete tasks
 taskListBehavior s (VTY.EvKey (VTY.KChar 'd') []) = undefined s
 -- Start editing a new task
-taskListBehavior s (VTY.EvKey (VTY.KChar 'e') []) =
-  case taskListSelectedElement (tasks s) of
-    Nothing -> B.continue s -- TODO: Add notification popup
-    Just t  ->
-      let edit = B.editor RTaskEdit (Just 1) (formatTask t)
-      in  B.continue s{taskEdit=Just edit}
+taskListBehavior s (VTY.EvKey (VTY.KChar 'e') []) = B.continue (startEdit s)
 -- Update the task list (scroll etc.)
 taskListBehavior s e = do
   newTasks <- updateTaskList e (tasks s)
   B.continue s{tasks=newTasks}
-
-taskEditBehavior :: B.Editor String RName -> UIState -> VTY.Event -> NewState
-taskEditBehavior _    s (VTY.EvKey VTY.KEsc   []) = B.continue s{taskEdit=Nothing}
-taskEditBehavior edit s (VTY.EvKey VTY.KHome  []) = B.continue s{taskEdit=Just (B.applyEdit T.gotoBOL edit)}
-taskEditBehavior edit s (VTY.EvKey VTY.KEnd   []) = B.continue s{taskEdit=Just (B.applyEdit T.gotoEOL edit)}
-taskEditBehavior edit s (VTY.EvKey VTY.KEnter []) = do -- TODO: Save changes to file
-  let editedText = unlines $ B.getEditContents edit
-  case parse pTask "edited task" editedText of
-    Left parseError -> undefined parseError -- TODO: Add notification here
-    Right newTask -> do
-      let newTaskList = taskListModify (const newTask) (tasks s)
-      B.continue s{tasks=newTaskList, taskEdit=Nothing}
-taskEditBehavior edit s e = do
-  newEdit <- B.handleEditorEvent e edit
-  B.continue s{taskEdit=Just newEdit}
 
 selectBehavior :: UIState -> VTY.Event -> NewState
 -- Deal with popup if there is one
