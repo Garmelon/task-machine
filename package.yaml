@@ -47,7 +47,7 @@ library:
   source-dirs: src
 
 executables:
-  task-machine-exe:
+  task-machine:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
