@@ -87,6 +87,7 @@ data UIState = UIState
 
   -- tasks
   , tasks      :: TaskList RName
+  , taskEdit   :: Maybe (B.Editor String RName)
   }
 
 type NewState = B.EventM RName (B.Next UIState)

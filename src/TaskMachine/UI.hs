@@ -7,11 +7,15 @@ module TaskMachine.UI
 import qualified Brick                     as B
 import qualified Brick.Focus               as B
 import qualified Brick.Themes              as B
+import qualified Brick.Widgets.Edit        as B
+import qualified Data.Text.Zipper          as T
 import qualified Data.Vector               as V
 import qualified Graphics.Vty.Input.Events as VTY
+import           Text.Megaparsec
 
 import           TaskMachine.LTask
 import           TaskMachine.Options
+import           TaskMachine.Task
 import           TaskMachine.UI.Popup
 import           TaskMachine.UI.TaskList
 import           TaskMachine.UI.Types
@@ -24,8 +28,11 @@ placeholderTopBar = B.str "Prune | Reload | Search: " B.<+> B.vLimit 1 (B.fill '
 placeholderNewTask :: B.Widget RName
 placeholderNewTask = B.str "New: " B.<+> B.vLimit 1 (B.fill '_')
 
+drawTaskList :: Bool -> UIState -> B.Widget RName
+drawTaskList focused s = renderTaskList (taskEdit s) focused (tasks s)
+
 drawBaseLayer :: UIState -> B.Widget RName
-drawBaseLayer s = B.vBox [placeholderTopBar, renderTaskList True (tasks s), placeholderNewTask]
+drawBaseLayer s = B.vBox [placeholderTopBar, drawTaskList True s, placeholderNewTask]
 
 drawUIState :: UIState -> [B.Widget RName]
 drawUIState s@UIState{errorPopup=Just p} = [renderPopupOk p, drawBaseLayer s]
@@ -52,16 +59,55 @@ closeBehavior _ s (VTY.EvKey VTY.KEsc        []) = B.halt s
 closeBehavior _ s (VTY.EvKey (VTY.KChar 'q') []) = B.halt s
 closeBehavior f s e                              = f s e -- wrapper around another behavior
 
-{-
-focusBehavior :: (UIState -> VTY.Event -> Result) -> UIState -> VTY.Event -> Result
+focusBehavior :: (UIState -> VTY.Event -> NewState) -> UIState -> VTY.Event -> NewState
 focusBehavior _ s (VTY.EvKey (VTY.KChar '\t') []) = B.continue $ bigFocusNext s
 focusBehavior _ s (VTY.EvKey VTY.KBackTab     []) = B.continue $ bigFocusPrev s
 focusBehavior f s e = f s e -- wrapper around another behavior
--}
+
+taskListBehavior :: UIState -> VTY.Event -> NewState
+-- Mark/unmark a task as completed
+taskListBehavior s (VTY.EvKey (VTY.KChar 'x') []) = undefined s
+-- Delete tasks
+taskListBehavior s (VTY.EvKey (VTY.KChar 'd') []) = undefined s
+-- Start editing a new task
+taskListBehavior s (VTY.EvKey (VTY.KChar 'e') []) =
+  case taskListSelectedElement (tasks s) of
+    Nothing -> B.continue s -- TODO: Add notification popup
+    Just t  ->
+      let edit = B.editor RTaskEdit (Just 1) (formatTask t)
+      in  B.continue s{taskEdit=Just edit}
+-- Update the task list (scroll etc.)
+taskListBehavior s e = do
+  newTasks <- updateTaskList e (tasks s)
+  B.continue s{tasks=newTasks}
+
+taskEditBehavior :: B.Editor String RName -> UIState -> VTY.Event -> NewState
+taskEditBehavior _    s (VTY.EvKey VTY.KEsc   []) = B.continue s{taskEdit=Nothing}
+taskEditBehavior edit s (VTY.EvKey VTY.KHome  []) = B.continue s{taskEdit=Just (B.applyEdit T.gotoBOL edit)}
+taskEditBehavior edit s (VTY.EvKey VTY.KEnd   []) = B.continue s{taskEdit=Just (B.applyEdit T.gotoEOL edit)}
+taskEditBehavior edit s (VTY.EvKey VTY.KEnter []) = do -- TODO: Save changes to file
+  let editedText = unlines $ B.getEditContents edit
+  case parse pTask "edited task" editedText of
+    Left parseError -> undefined parseError -- TODO: Add notification here
+    Right newTask -> do
+      let newTaskList = taskListModify (const newTask) (tasks s)
+      B.continue s{tasks=newTaskList, taskEdit=Nothing}
+taskEditBehavior edit s e = do
+  newEdit <- B.handleEditorEvent e edit
+  B.continue s{taskEdit=Just newEdit}
 
 selectBehavior :: UIState -> VTY.Event -> NewState
+-- Deal with popup if there is one
 selectBehavior s@UIState{errorPopup=Just popup} e = undefined popup s e
-selectBehavior s e = closeBehavior rootBehavior s e
+-- Under the assumption that tasks can only be edited while the task list is focused, edit a task
+selectBehavior s@UIState{taskEdit=Just edit} e = taskEditBehavior edit s e
+-- If nothing immediately jumps out at you, see which part has focus.
+selectBehavior s e =
+  case B.focusGetCurrent (focus s) of
+    Just BRTopBar   -> closeBehavior (focusBehavior rootBehavior) s e
+    Just BRTaskList -> closeBehavior (focusBehavior taskListBehavior) s e
+    Just BRNewTask  -> closeBehavior (focusBehavior rootBehavior) s e
+    Nothing         -> closeBehavior (focusBehavior rootBehavior) s e
 
 updateUIState :: UIState -> B.BrickEvent RName () -> NewState
 updateUIState s (B.VtyEvent e) = selectBehavior s e
@@ -107,4 +153,5 @@ startUIState o = UIState
   , focus          = B.focusRing [BRTaskList, BRNewTask, BRTopBar]
   , errorPopup     = Nothing
   , tasks          = taskList RTaskList V.empty
+  , taskEdit       = Nothing
   }

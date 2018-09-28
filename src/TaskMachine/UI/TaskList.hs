@@ -2,6 +2,7 @@ module TaskMachine.UI.TaskList
   ( TaskList
   , taskList
   , renderTaskList
+  , updateTaskList
   , taskListElements
   , taskListFilter
   , taskListSelectedElement
@@ -11,12 +12,12 @@ module TaskMachine.UI.TaskList
 --import           Data.Void
 
 import qualified Brick               as B
+import qualified Brick.Widgets.Edit  as B
 import qualified Brick.Widgets.List  as B
 import qualified Data.Vector         as V
+import qualified Graphics.Vty        as VTY
 --import qualified Brick.Focus          as B
---import qualified Brick.Widgets.Edit   as B
 --import qualified Data.Text.Zipper     as T
---import qualified Graphics.Vty         as VTY
 --import           Text.Megaparsec
 
 import           TaskMachine.LTask
@@ -37,9 +38,17 @@ newList name ltasks = B.list name ltasks 1
 taskList :: n -> V.Vector LTask -> TaskList n
 taskList name ltasks = TaskList{visibleTasks=newList name ltasks, invisibleTasks=V.empty}
 
--- TODO: render while editing
-renderTaskList :: (Ord n, Show n) => Bool -> TaskList n -> B.Widget n
-renderTaskList focus tl = B.renderList (const $ renderTask . toTask) focus (visibleTasks tl)
+renderLTask :: (Ord n, Show n) => Maybe (B.Editor String n) -> Bool -> LTask -> B.Widget n
+renderLTask (Just e) True _ = B.renderEditor (B.str . unlines) True e
+renderLTask _ _ lt          = renderTask (toTask lt)
+
+renderTaskList :: (Ord n, Show n) => Maybe (B.Editor String n) -> Bool -> TaskList n -> B.Widget n
+renderTaskList edit focus tl  = B.renderList (renderLTask edit) focus (visibleTasks tl)
+
+updateTaskList :: (Ord n) => VTY.Event -> TaskList n -> B.EventM n (TaskList n)
+updateTaskList e tl = do
+  updatedList <- B.handleListEventVi B.handleListEvent e (visibleTasks tl)
+  pure tl{visibleTasks=updatedList}
 
 {- Managing tasks -}
 

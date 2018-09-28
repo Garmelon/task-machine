@@ -32,7 +32,7 @@ dependencies:
   #- sqlite-simple
   #- stm
   #- text
-  #- text-zipper
+- text-zipper
 - time
   #- transformers
   #- unix
