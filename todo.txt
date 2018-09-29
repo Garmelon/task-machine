@@ -7,3 +7,4 @@
 - c2018-09-28 Move cursor to beginning of task description when editing tasks
 - c2018-09-28 Syntax highlighting while editing tasks
 x2018-09-27 c2018-09-18 Quit using Esc or q
+x2018-09-29 c2018-09-28 Use B.EventM's MonadIO instance instead of B.suspendAndResume (facepalm)

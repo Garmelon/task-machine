@@ -28,6 +28,7 @@ dependencies:
   #- bytestring
 - containers
 - megaparsec
+- mtl
 - optparse-applicative
   #- sqlite-simple
   #- stm

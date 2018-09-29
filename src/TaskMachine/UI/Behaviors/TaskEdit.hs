@@ -4,6 +4,7 @@ module TaskMachine.UI.Behaviors.TaskEdit
 
 import qualified Brick                   as B
 import qualified Brick.Widgets.Edit      as B
+import           Control.Monad.Trans
 import qualified Data.Text.Zipper        as T
 import qualified Graphics.Vty            as VTY
 import           Text.Megaparsec
@@ -25,10 +26,10 @@ taskEditBehavior :: B.Editor String RName -> UIState -> VTY.Event -> NewState
 taskEditBehavior _    s (VTY.EvKey VTY.KEsc   []) = B.continue s{taskEdit=Nothing}
 taskEditBehavior edit s (VTY.EvKey VTY.KHome  []) = B.continue s{taskEdit=Just (B.applyEdit T.gotoBOL edit)}
 taskEditBehavior edit s (VTY.EvKey VTY.KEnd   []) = B.continue s{taskEdit=Just (B.applyEdit T.gotoEOL edit)}
-taskEditBehavior edit s (VTY.EvKey VTY.KEnter []) = B.suspendAndResume $ do
+taskEditBehavior edit s (VTY.EvKey VTY.KEnter []) = do
   let newState = finishEdit edit s
-  saveUIState newState
-  pure newState
+  liftIO $ saveUIState newState
+  B.continue newState
 taskEditBehavior edit s e = do
   newEdit <- B.handleEditorEvent e edit
   B.continue s{taskEdit=Just newEdit}
