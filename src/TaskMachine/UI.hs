@@ -4,14 +4,13 @@ module TaskMachine.UI
   , loadTasks
   ) where
 
-import qualified Brick                             as B
-import qualified Brick.Themes                      as B
-import qualified Data.Vector                       as V
-import qualified Graphics.Vty.Input.Events         as VTY
+import qualified Brick                     as B
+import qualified Brick.Themes              as B
+import qualified Data.Vector               as V
+import qualified Graphics.Vty.Input.Events as VTY
 
 import           TaskMachine.Options
-import           TaskMachine.UI.Behaviors.TaskEdit
-import           TaskMachine.UI.Behaviors.TaskList
+import           TaskMachine.UI.Behaviors
 import           TaskMachine.UI.TaskList
 import           TaskMachine.UI.Types
 
