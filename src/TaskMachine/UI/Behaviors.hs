@@ -44,6 +44,10 @@ taskEditBehavior edit s e = do
   B.continue s{taskEdit=Just newEdit}
 
 taskListBehavior :: UIState -> VTY.Event -> NewState
+-- Reload while running
+taskListBehavior s (VTY.EvKey (VTY.KChar 'r') []) = do
+  newState <- liftIO $ loadTasks s
+  B.continue newState
 -- Mark/unmark a task as completed
 taskListBehavior s (VTY.EvKey (VTY.KChar 'x') []) = undefined s
 -- Delete tasks
