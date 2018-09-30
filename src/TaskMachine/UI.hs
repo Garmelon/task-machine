@@ -35,9 +35,8 @@ closeBehavior f s e                              = f s e -- wrapper around anoth
 popupBehavior :: Popup RName (UIState -> NewState) -> UIState -> VTY.Event -> NewState
 popupBehavior p s (VTY.EvKey VTY.KEnter []) =
   case popupSelection p of
-    Nothing -> B.continue s{errorPopup=Nothing}
-    Just action -> do
-      action s{errorPopup=Nothing}
+    Nothing     -> B.continue s{errorPopup=Nothing}
+    Just action -> action s{errorPopup=Nothing}
 popupBehavior p s e = do
   newPopup <- handlePopupEvent e p
   B.continue s{errorPopup=Just newPopup}

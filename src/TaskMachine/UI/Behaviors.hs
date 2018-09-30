@@ -11,9 +11,9 @@ import qualified Graphics.Vty            as VTY
 import           Text.Megaparsec
 
 import           TaskMachine.Task
+import           TaskMachine.UI.Stuff
 import           TaskMachine.UI.TaskList
 import           TaskMachine.UI.Types
-import TaskMachine.UI.Stuff
 
 startEdit :: UIState -> UIState
 startEdit s =
