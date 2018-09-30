@@ -13,6 +13,7 @@ import           Text.Megaparsec
 import           TaskMachine.Task
 import           TaskMachine.UI.TaskList
 import           TaskMachine.UI.Types
+import TaskMachine.UI.Stuff
 
 startEdit :: UIState -> UIState
 startEdit s =
@@ -36,8 +37,7 @@ taskEditBehavior _    s (VTY.EvKey VTY.KEsc   []) = B.continue s{taskEdit=Nothin
 taskEditBehavior edit s (VTY.EvKey VTY.KHome  []) = B.continue s{taskEdit=Just (B.applyEdit T.gotoBOL edit)}
 taskEditBehavior edit s (VTY.EvKey VTY.KEnd   []) = B.continue s{taskEdit=Just (B.applyEdit T.gotoEOL edit)}
 taskEditBehavior edit s (VTY.EvKey VTY.KEnter []) = do
-  let newState = finishEdit edit s
-  liftIO $ saveTasks newState
+  newState <- liftIO $ saveTasks $ finishEdit edit s
   B.continue newState
 taskEditBehavior edit s e = do
   newEdit <- B.handleEditorEvent e edit
@@ -45,9 +45,7 @@ taskEditBehavior edit s e = do
 
 taskListBehavior :: UIState -> VTY.Event -> NewState
 -- Reload while running
-taskListBehavior s (VTY.EvKey (VTY.KChar 'r') []) = do
-  newState <- liftIO $ loadTasks s
-  B.continue newState
+taskListBehavior s (VTY.EvKey (VTY.KChar 'r') []) = actionLoad s
 -- Mark/unmark a task as completed
 taskListBehavior s (VTY.EvKey (VTY.KChar 'x') []) = undefined s
 -- Delete tasks

@@ -1,11 +1,12 @@
 module TaskMachine.UI.Popup
   ( minPopupWidth
   -- * Ok popup
-  , PopupOk
-  , popupOk
-  , popupOk'
-  , renderPopupOk
-  , handlePopupOkEvent
+  , Popup
+  , popup
+  , popup'
+  , renderPopup
+  , handlePopupEvent
+  , popupSelection
   ) where
 
 import qualified Brick                as B
@@ -17,18 +18,22 @@ minPopupWidth = 78
 
 {- Ok popup -}
 
-data PopupOk n = PopupOk (B.Dialog ()) (B.Widget n)
+data Popup n r = Popup (B.Dialog r) (B.Widget n)
 
-popupOk :: String -> String -> PopupOk n
-popupOk title content = popupOk' title (B.str content)
+popup :: String -> String -> [(String, r)] -> Popup n r
+popup title content = popup' title (B.str content)
 
-popupOk' :: String -> B.Widget n -> PopupOk n
-popupOk' title widget =
-  let dialog = B.dialog (Just $ " " ++ title ++ " ") (Just (0,[("Ok",())])) minPopupWidth
-  in  PopupOk dialog widget
+popup' :: String -> B.Widget n -> [(String, r)] -> Popup n r
+popup' title widget results =
+  let spacedTitle = " " ++ title ++ " "
+      dialog = B.dialog (Just spacedTitle) (Just (0, results)) minPopupWidth
+  in  Popup dialog widget
 
-renderPopupOk :: PopupOk n -> B.Widget n
-renderPopupOk (PopupOk dialog widget) = B.renderDialog dialog widget
+renderPopup :: Popup n r -> B.Widget n
+renderPopup (Popup dialog widget) = B.renderDialog dialog widget
 
-handlePopupOkEvent :: VTY.Event -> PopupOk n -> B.EventM n (PopupOk n)
-handlePopupOkEvent e (PopupOk dialog widget) = PopupOk <$> B.handleDialogEvent e dialog <*> pure widget
+handlePopupEvent :: VTY.Event -> Popup n r -> B.EventM n (Popup n r)
+handlePopupEvent e (Popup dialog widget) = Popup <$> B.handleDialogEvent e dialog <*> pure widget
+
+popupSelection :: Popup n r -> Maybe r
+popupSelection (Popup dialog _) = B.dialogSelection dialog

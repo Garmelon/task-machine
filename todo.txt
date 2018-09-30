@@ -1,10 +1,11 @@
-- c2018-09-18 Offer "retry" or "quit" +dialogue - couldn't load from todo file
-- c2018-09-18 Offer "retry" or "quit" +dialogue - couldn't save to todo file
-- c2018-09-18 Offer "retry" or "quit" +dialogue - syntax error in todo file
 - c2018-09-18 Offer to clean up file when loading (adding creation/completion dates)
 - c2018-09-18 Purge - move completed tasks to a separate file
-- c2018-09-18 Sort tasks by completion, priority, due date, description
 - c2018-09-28 Move cursor to beginning of task description when editing tasks
 - c2018-09-28 Syntax highlighting while editing tasks
+- c2018-09-30 Sort tasks when (re-)loading
 x2018-09-27 c2018-09-18 Quit using Esc or q
 x2018-09-29 c2018-09-28 Use B.EventM's MonadIO instance instead of B.suspendAndResume (facepalm)
+x2018-09-30 c2018-09-18 Offer "retry" or "quit" +dialogue - couldn't load from todo file
+x2018-09-30 c2018-09-18 Offer "retry" or "quit" +dialogue - couldn't save to todo file
+x2018-09-30 c2018-09-18 Offer "retry" or "quit" +dialogue - syntax error in todo file
+x2018-09-30 c2018-09-30 Custom exception messages

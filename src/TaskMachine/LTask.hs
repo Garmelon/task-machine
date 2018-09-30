@@ -20,10 +20,12 @@ module TaskMachine.LTask
   , saveLTasks
   ) where
 
+import           Control.Exception
 import           Data.Function
 import           Data.List
+import           System.IO.Error
 
-import qualified Data.Vector      as V
+import qualified Data.Vector       as V
 import           Text.Megaparsec
 
 import           TaskMachine.Task
@@ -54,14 +56,45 @@ modifyLTask f (LTask pos task) = LTask pos (f task)
 sortLTasks :: [LTask] -> [LTask]
 sortLTasks = sortBy (compare `on` lPosition)
 
+{- Loading -}
+
+data ErrorAction
+  = ErrorMessage String
+  | IgnoreError
+  deriving (Show)
+
+loadErrorMessage :: IOError -> Maybe ErrorAction
+loadErrorMessage e
+  | isDoesNotExistError e = Just IgnoreError
+  | isIllegalOperation e  = Just $ ErrorMessage $ "Could not open file:\n" ++ show e
+  | isPermissionError e   = Just $ ErrorMessage "Could not open file: Permission denied"
+  | otherwise             = Nothing
+
 loadLTasks :: FilePath -> IO (Either String (V.Vector LTask))
 loadLTasks file = do
-  content <- readFile file
-  case parse pTasks file content of
-    Right taskList  -> pure $ Right $ V.fromList $ fromTasks taskList
-    Left parseError -> pure $ Left $ parseErrorPretty parseError
+  content <- tryJust loadErrorMessage $ readFile file
+  case parse pTasks file <$> content of
+    Left IgnoreError        -> pure $ Right V.empty
+    Left (ErrorMessage msg) -> pure $ Left msg
+    Right (Left parseError) -> pure $ Left $ parseErrorPretty parseError
+    Right (Right taskList)  -> pure $ Right $ V.fromList $ fromTasks taskList
+    --Left parseError -> pure $ Left $ parseErrorPretty parseError
+    --Right taskList  -> pure $ Right $ V.fromList $ fromTasks taskList
 
-saveLTasks :: FilePath -> V.Vector LTask -> IO ()
+{- Saving -}
+
+saveErrorMessage :: IOError -> Maybe String
+saveErrorMessage e
+  | isAlreadyInUseError e = Just "Could not save to file: File already in use"
+  | isFullError e         = Just "Could not save to file: Disk full"
+  | isIllegalOperation e  = Just $ "Could not save to file:\n" ++ show e
+  | isPermissionError e   = Just "Could not save to file: Permission denied"
+  | otherwise             = Nothing
+
+saveLTasks :: FilePath -> V.Vector LTask -> IO (Either String ())
 saveLTasks file ltasks = do
   let text = formatTasks $ toTasks $ V.toList ltasks
-  writeFile file text
+  result <- tryJust saveErrorMessage $ writeFile file text
+  case result of
+    Left ioErrorMessage -> pure $ Left ioErrorMessage
+    Right _             -> pure $ Right ()

@@ -10,8 +10,6 @@ module TaskMachine.UI.Types
   , UIState(..)
   , NewState
   , defaultTheme
-  , loadTasks
-  , saveTasks
   ) where
 
 import qualified Brick                   as B
@@ -21,8 +19,8 @@ import qualified Brick.Widgets.Edit      as B
 import qualified Brick.Widgets.List      as B
 import qualified Graphics.Vty            as VTY
 
-import           TaskMachine.LTask
 import           TaskMachine.Options
+import           TaskMachine.UI.Popup
 import           TaskMachine.UI.Task
 import           TaskMachine.UI.TaskList
 
@@ -35,10 +33,10 @@ data RName
 {- UI state -}
 
 data UIState = UIState
-  { options  :: Options -- includes todo file and other config
-  --, errorPopup :: Maybe (PopupOk RName)
-  , tasks    :: TaskList RName
-  , taskEdit :: Maybe (B.Editor String RName)
+  { options    :: Options -- includes todo file and other config
+  , errorPopup :: Maybe (Popup RName (UIState -> NewState))
+  , tasks      :: TaskList RName
+  , taskEdit   :: Maybe (B.Editor String RName)
   }
 
 type NewState = B.EventM RName (B.Next UIState)
@@ -73,19 +71,3 @@ defaultTheme = B.newTheme VTY.defAttr
     bg' = VTY.withBackColor none
     st' = VTY.withStyle     none
     none = VTY.defAttr
-
-loadTasks :: UIState -> IO UIState
-loadTasks s = do
-  let file = oTodofile $ options s
-  result <- loadLTasks file
-  case result of
-    -- TODO: Improve error handling when loading files
-    --Left errorMessage -> pure s{errorPopup=Just $ popupOk "Error loading tasks" errorMessage}
-    Left errorMessage -> undefined errorMessage
-    Right ltasks      -> pure s{tasks=taskList RTaskList ltasks}
-
-saveTasks :: UIState -> IO ()
-saveTasks s = do
-  let filepath = oTodofile (options s)
-      ltasks = taskListElements (tasks s)
-  saveLTasks filepath ltasks
