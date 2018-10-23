@@ -23,7 +23,13 @@ data EditState = ExistingTask | NewTask
   deriving (Show)
 
 taskEdit :: n -> Task -> EditState -> TaskEdit n
-taskEdit name task s = TaskEdit s $ B.editor name (Just 1) (formatTask task)
+taskEdit name task s =
+  let (predesc, desc) = formatTaskHalves task
+      formattedTask = predesc ++ desc
+      cursor = length predesc
+      editor = B.editor name (Just 1) formattedTask
+      newEditor = B.applyEdit (T.moveCursor (0, cursor)) editor
+  in  TaskEdit s newEditor
 
 editState :: TaskEdit n -> EditState
 editState (TaskEdit s _) = s

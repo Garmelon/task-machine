@@ -26,6 +26,7 @@ module TaskMachine.Task
   , compareTasks
   -- * Formatting
   , formatTask
+  , formatTaskHalves
   , formatTasks
   , formatDate
   , formatDue
@@ -73,6 +74,23 @@ data Task = Task
   , taskDescription :: Description
   } deriving (Show)
 
+-- | Convert a 'Task' to its string representation.
+-- This string representation is split into a pre-description and a description part.
+--
+-- For further detail, see 'formatTask'
+formatTaskHalves :: Task -> (String, String)
+formatTaskHalves t =
+  (  formatCompletion (taskCompletion t) ++ " "
+  ++ maybeWithSpace formatPriority (taskPriority t)
+  ++ maybeWithSpace formatDue(taskDue t)
+  ++ maybeWithSpace formatCreated (taskCreated t)
+  , formatDescription (taskDescription t)
+  )
+  where
+    maybeWithSpace :: (a -> String) -> Maybe a -> String
+    maybeWithSpace _ Nothing  = ""
+    maybeWithSpace f (Just a) = f a ++ " "
+
 -- | Convert a 'Task' to its string representation, which can be parsed by 'pTask'.
 --
 -- If this string representation is parsed using 'pTask', it should yield the original task,
@@ -81,16 +99,9 @@ data Task = Task
 -- could include the text version of these in the beginning, i. e. @taskDescription = "(A) hello"@.
 -- In that case, converting the task to a string and back yields a different result.
 formatTask :: Task -> String
-formatTask t
-  =  formatCompletion (taskCompletion t) ++ " "
-  ++ maybeWithSpace formatPriority (taskPriority t)
-  ++ maybeWithSpace formatDue(taskDue t)
-  ++ maybeWithSpace formatCreated (taskCreated t)
-  ++ formatDescription (taskDescription t)
-  where
-    maybeWithSpace :: (a -> String) -> Maybe a -> String
-    maybeWithSpace _ Nothing  = ""
-    maybeWithSpace f (Just a) = f a ++ " "
+formatTask t =
+  let (predesc, desc) = formatTaskHalves t
+  in  predesc ++ desc
 
 -- | Convert a list of tasks to its string representation, which can be parsed by 'pTasks'.
 formatTasks :: [Task] -> String
