@@ -85,7 +85,9 @@ deleteTask :: TaskList n -> TaskList n
 deleteTask tl@(TaskList list) =
   case B.listSelected list of
     Nothing -> tl
-    Just index -> TaskList $ B.listMoveBy 1 $ B.listRemove index list
+    Just index
+      | index == 0 -> TaskList $ B.listRemove index list
+      | otherwise  -> TaskList $ B.listMoveBy 1 $ B.listRemove index list
 
 {- helper functions -}
 
