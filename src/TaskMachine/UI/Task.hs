@@ -30,7 +30,10 @@ withSpace :: B.Widget n -> B.Widget n
 withSpace w = w B.<+> B.withDefAttr taskAttr (B.str " ")
 
 renderCompletion :: Completion -> B.Widget n
-renderCompletion = B.withDefAttr taskCompletionAttr . B.str . formatCompletion
+renderCompletion Incomplete = B.str "-"
+renderCompletion (Complete Nothing) = B.str "x"
+renderCompletion (Complete (Just day)) =
+  B.str "x" B.<+> B.withDefAttr taskCompletionAttr (B.str $ formatDate day)
 
 renderPriority :: Priority -> B.Widget n
 renderPriority p =

@@ -1,6 +1,6 @@
-- c2018-09-18 Offer to clean up file when loading (adding creation/completion dates)
+- c2018-09-18 Clean up file (adding creation/completion dates)
 - c2018-09-18 Purge - move completed tasks to a separate file
-- c2018-09-28 Move cursor to beginning of task description when editing tasks
+x2018-10-23 c2018-09-28 Move cursor to beginning of task description when editing tasks
 - c2018-09-28 Syntax highlighting while editing tasks
 x2018-10-23 c2018-09-30 Display "-empty-" when TaskList is empty
 x2018-09-27 c2018-09-18 Quit using Esc or q
@@ -9,3 +9,4 @@ x2018-09-30 c2018-09-18 Offer "retry" or "quit" +dialogue - couldn't load from t
 x2018-09-30 c2018-09-18 Offer "retry" or "quit" +dialogue - couldn't save to todo file
 x2018-09-30 c2018-09-18 Offer "retry" or "quit" +dialogue - syntax error in todo file
 x2018-09-30 c2018-09-30 Custom exception messages
+- c2018-10-23 Don't crash on parse errors etc.

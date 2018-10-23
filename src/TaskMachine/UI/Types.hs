@@ -53,7 +53,7 @@ defaultTheme = B.newTheme VTY.defAttr
   , (B.listSelectedAttr,                      st' VTY.bold)
   , (B.listSelectedFocusedAttr, bg VTY.blue $ st' VTY.bold)
   , (taskAttr,                                        none)
-  , (taskCompletionAttr,                              none)
+  , (taskCompletionAttr,               fg' VTY.brightBlack)
   , (taskPriorityAttr,        fg VTY.cyan   $ st' VTY.bold)
   , (taskPriorityAttr <> "A", fg VTY.red    $ st' VTY.bold)
   , (taskPriorityAttr <> "B", fg VTY.yellow $ st' VTY.bold)
