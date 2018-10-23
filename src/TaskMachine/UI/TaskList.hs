@@ -83,9 +83,9 @@ replaceTask task (TaskList list) = TaskList $ B.listModify replace list
 
 deleteTask :: TaskList n -> TaskList n
 deleteTask tl@(TaskList list) =
-  case listSize list of
-    0 -> tl
-    n -> TaskList $ B.listRemove (n-1) list
+  case B.listSelected list of
+    Nothing -> tl
+    Just index -> TaskList $ B.listMoveBy 1 $ B.listRemove index list
 
 {- helper functions -}
 
