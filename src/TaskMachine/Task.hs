@@ -21,6 +21,8 @@ module TaskMachine.Task
   , Description
   , Snippet(..)
   -- * Misc stuff
+  , emptyTask
+  , newTask
   , compareTasks
   -- * Formatting
   , formatTask
@@ -312,6 +314,13 @@ pTasks :: Parser [Task]
 pTasks = many pTask <* eof
 
  {- Misc stuff -}
+
+emptyTask :: Task
+emptyTask = Task Incomplete Nothing Nothing Nothing []
+
+-- | Create a new task with empty description and the given date as creation date
+newTask :: Day -> Task
+newTask day = Task Incomplete Nothing Nothing (Just day) []
 
 compareTasks :: Task -> Task -> Ordering
 compareTasks a b = mconcat

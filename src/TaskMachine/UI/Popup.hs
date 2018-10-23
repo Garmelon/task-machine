@@ -1,22 +1,16 @@
 module TaskMachine.UI.Popup
-  ( minPopupWidth
-  -- * Ok popup
-  , Popup
+  ( Popup
   , popup
   , popup'
   , renderPopup
   , handlePopupEvent
   , popupSelection
+  , minPopupWidth
   ) where
 
 import qualified Brick                as B
 import qualified Brick.Widgets.Dialog as B
 import qualified Graphics.Vty         as VTY
-
-minPopupWidth :: Int
-minPopupWidth = 78
-
-{- Ok popup -}
 
 data Popup n r = Popup (B.Dialog r) (B.Widget n)
 
@@ -37,3 +31,6 @@ handlePopupEvent e (Popup dialog widget) = Popup <$> B.handleDialogEvent e dialo
 
 popupSelection :: Popup n r -> Maybe r
 popupSelection (Popup dialog _) = B.dialogSelection dialog
+
+minPopupWidth :: Int
+minPopupWidth = 78

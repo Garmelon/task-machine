@@ -1,53 +1,206 @@
 module TaskMachine.UI.Behaviors
-  ( taskListBehavior
+  ( Behavior
+  --, emptyBehavior
+  -- * Miscellaneous
+  , getCurrentDay
+  , closeModifier
+  -- * Behaviors
+  , popupBehavior
+  , taskListBehavior
   , taskEditBehavior
+  -- * Actions
+  , actionLoad
+  , actionSave
+  , actionDelete
+  , actionEditNew
+  , actionEditSelected
+  , actionSortTasks
+  , actionFinishEdit
   ) where
 
-import qualified Brick                   as B
-import qualified Brick.Widgets.Edit      as B
-import           Control.Monad.Trans
-import qualified Data.Text.Zipper        as T
-import qualified Graphics.Vty            as VTY
-import           Text.Megaparsec
+import           Control.Monad
 
+import qualified Brick                   as B
+--import qualified Brick.Widgets.Edit      as B
+import           Control.Monad.Trans
+--import qualified Data.Text.Zipper        as T
+import qualified Graphics.Vty            as VTY
+--import           Text.Megaparsec
+import           Data.Time
+
+import           TaskMachine.LTask
+import           TaskMachine.Options
 import           TaskMachine.Task
-import           TaskMachine.UI.Stuff
+import           TaskMachine.UI.Popup
+import           TaskMachine.UI.TaskEdit
 import           TaskMachine.UI.TaskList
 import           TaskMachine.UI.Types
 
-startEdit :: UIState -> UIState
-startEdit s =
-  case taskListSelectedElement (tasks s) of
-    Nothing -> undefined -- TODO: Add popup notification
+type Behavior = UIState -> VTY.Event -> B.EventM RName (B.Next UIState)
+
+type Action = UIState -> B.EventM RName UIState
+
+{- Miscellaneous -}
+
+getCurrentDay :: IO Day
+getCurrentDay = utctDay <$> liftIO getCurrentTime
+
+closeModifier :: Behavior -> Behavior
+closeModifier _ s (VTY.EvKey VTY.KEsc        []) = B.halt s
+closeModifier _ s (VTY.EvKey (VTY.KChar 'q') []) = B.halt s
+closeModifier f s e                              = f s e -- wrapper around another behavior
+
+{- Popups -}
+
+popupBehavior :: Popup RName (UIState -> NewState) -> Behavior
+popupBehavior p s (VTY.EvKey VTY.KEnter []) =
+  case popupSelection p of
+    Nothing     -> B.continue s{errorPopup=Nothing} -- Just close, no action was specified
+    Just action -> action s{errorPopup=Nothing} -- Do the thing! (and close the popup)
+popupBehavior p s e = do
+  newPopup <- handlePopupEvent e p
+  B.continue s{errorPopup=Just newPopup}
+
+{- On the task list -}
+
+-- (re-)loading
+
+actionLoad :: Action
+actionLoad s = do
+  let file = oTodofile $ options s
+  result <- liftIO $ loadLTasks file
+  case result of
+    Right ltasks      -> pure s{tasks=taskList RTaskList ltasks}
+    Left errorMessage ->
+      let p = popup "Error loading tasks" errorMessage
+                [ ("Retry", actionLoad >=> B.continue)
+                , ("Quit", B.halt)
+                ]
+      in  pure s{errorPopup=Just p}
+
+-- saving
+
+actionSave :: Action
+actionSave s = do
+  let filepath = oTodofile (options s)
+      ltasks = taskListElements (tasks s)
+  result <- liftIO $ saveLTasks filepath ltasks
+  case result of
+    Right _ -> pure s
+    Left errorMessage ->
+      let p = popup "Error saving tasks" errorMessage
+                [ ("Retry", actionSave >=> B.continue)
+                , ("Continue without saving", B.continue)
+                , ("Quit", B.halt)
+                ]
+      in  pure s{errorPopup=Just p}
+
+-- deleting a task
+
+actionDelete :: Action
+actionDelete s = pure s{tasks=deleteTask (tasks s)}
+
+-- beginning an edit
+
+actionEditNew :: Action
+actionEditNew s = do
+  today <- liftIO getCurrentDay
+  let task = newTask today
+      edit = taskEdit RTaskEdit task NewTask
+  pure s{editor=Just edit}
+
+actionEditSelected :: Action
+actionEditSelected s =
+  case selectedTask (tasks s) of
+    Nothing -> error "no task selected" -- TODO: Add popup notification
     Just t  ->
-      let edit = B.editor RTaskEdit (Just 1) (formatTask t)
-      in s{taskEdit=Just edit}
+      let edit = taskEdit RTaskEdit t ExistingTask
+      in pure s{editor=Just edit}
 
-finishEdit :: B.Editor String RName -> UIState -> UIState
+-- toggling completion
+
+actionToggleCompletion :: Action
+actionToggleCompletion s =
+  case selectedTask (tasks s) of
+    Nothing -> pure s
+    Just task -> do
+      newCompletion <- case taskCompletion task of
+        Complete _ -> pure Incomplete
+        Incomplete -> Complete . Just <$> liftIO getCurrentDay
+      let task' = task{taskCompletion=newCompletion}
+          newTaskList = replaceTask task' (tasks s)
+      pure s{tasks=newTaskList}
+
+-- sorting
+
+actionSortTasks :: Action
+actionSortTasks s = pure s{tasks=sortTaskList (tasks s)}
+
+-- combining all of the above...
+
+taskListBehavior :: Behavior
+-- Clean up: Add todays date where creation/completion date is missing
+--taskListBehavior s (VTY.EvKey (VTY.KChar 'c') []) = undefined s
+-- Delete currently selected task (implicit save)
+taskListBehavior s (VTY.EvKey (VTY.KChar 'd') []) =
+  actionDelete >=> actionSave >=> B.continue $ s
+-- Begin editing currently selected task
+taskListBehavior s (VTY.EvKey (VTY.KChar 'e') []) =
+  actionEditSelected >=> B.continue $ s
+-- Begin creating new task
+taskListBehavior s (VTY.EvKey (VTY.KChar 'n') []) =
+  actionEditNew >=> B.continue $ s
+-- Reload tasks (and sort them)
+taskListBehavior s (VTY.EvKey (VTY.KChar 'r') []) =
+  actionLoad >=> B.continue $ s
+-- Sort tasks
+taskListBehavior s (VTY.EvKey (VTY.KChar 's') []) =
+  actionSortTasks >=> B.continue $ s
+-- Toggle completion (implicit save)
+taskListBehavior s (VTY.EvKey (VTY.KChar 'x') []) =
+  actionToggleCompletion >=> actionSave >=> B.continue $ s
+-- Update the task list (scroll etc.)
+taskListBehavior s e = do
+  newTasks <- updateTaskList e (tasks s)
+  B.continue s{tasks=newTasks}
+
+{- In the task editor -}
+
+actionFinishEdit :: TaskEdit RName -> Action
+actionFinishEdit t = pure . finishEdit t
+
+-- get result of task editing
+-- if editing an existing task, modify that task
+-- if editing a new task, append that task
+finishEdit :: TaskEdit RName -> UIState -> UIState
 finishEdit edit s =
-  let editedText = unlines $ B.getEditContents edit
-  in  case parse pTask "edited task" editedText of
-    Left parseError -> undefined parseError -- TODO: Add popup notification
-    Right newTask   ->
-      let newTaskList = taskListModify (const newTask) (tasks s)
-      in  s{tasks=newTaskList, taskEdit=Nothing}
+  case editedTask edit of
+    Left e     -> error e -- TODO: Error popup
+    Right task -> s{tasks=modify task, editor=Nothing}
+  where
+    modify :: Task -> TaskList RName
+    modify task = case editState edit of
+      ExistingTask -> replaceTask task $ tasks s
+      NewTask      -> appendTask task $ tasks s
 
-taskEditBehavior :: B.Editor String RName -> UIState -> VTY.Event -> NewState
-taskEditBehavior _    s (VTY.EvKey VTY.KEsc   []) = B.continue s{taskEdit=Nothing}
-taskEditBehavior edit s (VTY.EvKey VTY.KHome  []) = B.continue s{taskEdit=Just (B.applyEdit T.gotoBOL edit)}
-taskEditBehavior edit s (VTY.EvKey VTY.KEnd   []) = B.continue s{taskEdit=Just (B.applyEdit T.gotoEOL edit)}
-taskEditBehavior edit s (VTY.EvKey VTY.KEnter []) = do
-  newState <- liftIO $ saveTasks $ finishEdit edit s
-  B.continue newState
+taskEditBehavior :: TaskEdit RName  -> Behavior
+taskEditBehavior _    s (VTY.EvKey VTY.KEsc []) = B.continue s{editor=Nothing}
+taskEditBehavior edit s (VTY.EvKey VTY.KEnter []) =
+  actionFinishEdit edit >=> actionSave >=> B.continue $ s
+--taskEditBehavior edit s (VTY.EvKey VTY.KEnter []) = do
+--  newState <- liftIO $ saveTasks $ finishEdit edit s
+--  B.continue newState
 taskEditBehavior edit s e = do
-  newEdit <- B.handleEditorEvent e edit
-  B.continue s{taskEdit=Just newEdit}
+  newEdit <- updateTaskEdit e edit
+  B.continue s{editor=Just newEdit}
 
-taskListBehavior :: UIState -> VTY.Event -> NewState
+{-
 -- Reload while running
 taskListBehavior s (VTY.EvKey (VTY.KChar 'r') []) = actionLoad s
 -- Mark/unmark a task as completed
 taskListBehavior s (VTY.EvKey (VTY.KChar 'x') []) = undefined s
+-- Delete tasks
+taskListBehavior s (VTY.EvKey (VTY.KChar 'd') []) = undefined s
 -- Delete tasks
 taskListBehavior s (VTY.EvKey (VTY.KChar 'd') []) = undefined s
 -- Start editing a new task
@@ -56,3 +209,4 @@ taskListBehavior s (VTY.EvKey (VTY.KChar 'e') []) = B.continue (startEdit s)
 taskListBehavior s e = do
   newTasks <- updateTaskList e (tasks s)
   B.continue s{tasks=newTasks}
+-}

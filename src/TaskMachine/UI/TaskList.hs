@@ -1,63 +1,96 @@
 module TaskMachine.UI.TaskList
   ( TaskList
   , taskList
+  , taskListElements
   , renderTaskList
   , updateTaskList
-  , taskListElements
-  , taskListFilter
-  , taskListSelectedElement
-  , taskListModify
+  , sortTaskList
+  , selectedTask
+  , appendTask
+  , replaceTask
+  , deleteTask
   ) where
 
-import qualified Brick               as B
-import qualified Brick.Widgets.Edit  as B
-import qualified Brick.Widgets.List  as B
-import qualified Data.Vector         as V
-import qualified Graphics.Vty        as VTY
+import           Data.Function
+import           Data.List
+
+import qualified Brick                   as B
+import qualified Brick.Widgets.List      as B
+import qualified Data.Vector             as V
+import qualified Graphics.Vty            as VTY
 
 import           TaskMachine.LTask
 import           TaskMachine.Task
 import           TaskMachine.UI.Task
+import           TaskMachine.UI.TaskEdit
 
-data TaskList n = TaskList
-  { visibleTasks   :: B.List n LTask
-  , invisibleTasks :: V.Vector LTask
-  } deriving (Show)
-
-newList :: n -> V.Vector LTask -> B.List n LTask
-newList name ltasks = B.list name ltasks 1
+newtype TaskList n = TaskList (B.List n LTask)
 
 taskList :: n -> V.Vector LTask -> TaskList n
-taskList name ltasks = TaskList{visibleTasks=newList name ltasks, invisibleTasks=V.empty}
-
-renderLTask :: (Ord n, Show n) => Maybe (B.Editor String n) -> Bool -> LTask -> B.Widget n
-renderLTask (Just e) True _ = B.renderEditor (B.str . unlines) True e
-renderLTask _ _ lt          = renderTask (toTask lt)
-
-renderTaskList :: (Ord n, Show n) => Maybe (B.Editor String n) -> Bool -> TaskList n -> B.Widget n
-renderTaskList edit focus tl  = B.renderList (renderLTask edit) focus (visibleTasks tl)
-
-updateTaskList :: (Ord n) => VTY.Event -> TaskList n -> B.EventM n (TaskList n)
-updateTaskList e tl = do
-  updatedList <- B.handleListEventVi B.handleListEvent e (visibleTasks tl)
-  pure tl{visibleTasks=updatedList}
-
-{- Managing tasks -}
+taskList name tasks = TaskList $ B.list name tasks 1
 
 taskListElements :: TaskList n -> V.Vector LTask
-taskListElements tl = B.listElements (visibleTasks tl) <> invisibleTasks tl
+taskListElements (TaskList list) = B.listElements list
 
-taskListFilter :: (Task -> Bool) -> TaskList n -> TaskList n
-taskListFilter f tl =
-  let (yes, no) = V.partition (f . toTask) $ taskListElements tl
-      name = B.listName (visibleTasks tl)
-      list = newList name yes
-  in  TaskList{visibleTasks=list, invisibleTasks=no}
+renderRow :: Maybe (B.Widget n) -> Bool -> LTask -> B.Widget n
+renderRow (Just w) True _ = w
+renderRow _ _ lt          = renderTask (toTask lt)
 
-taskListSelectedElement :: TaskList n -> Maybe Task
-taskListSelectedElement tl = toTask . snd <$> B.listSelectedElement (visibleTasks tl)
+renderLast :: (Ord n, Show n) => B.Widget n -> Bool -> B.List n LTask -> B.Widget n
+renderLast widget focus list =
+  let listWithPlaceholder = focusOnLastTask $ appendTask' emptyTask list
+  in  B.renderList (renderRow (Just widget)) focus listWithPlaceholder
 
-taskListModify :: (Task -> Task) -> TaskList n -> TaskList n
-taskListModify f tl =
-  let list = B.listModify (modifyLTask f) (visibleTasks tl)
-  in  tl{visibleTasks=list}
+renderTaskList :: (Ord n, Show n) => Maybe (TaskEdit n) -> Bool -> TaskList n -> B.Widget n
+renderTaskList Nothing focus (TaskList list)
+  | listSize list == 0 = renderLast (B.str "--- empty ---") focus list
+  | otherwise          = B.renderList (renderRow Nothing) focus list
+renderTaskList (Just te) focus (TaskList list) =
+  case editState te of
+    ExistingTask -> B.renderList (renderRow (Just teWidget)) focus list
+    NewTask      -> renderLast teWidget focus list
+  where
+    teWidget = renderTaskEdit focus te
+
+updateTaskList :: Ord n => VTY.Event -> TaskList n -> B.EventM n (TaskList n)
+updateTaskList event (TaskList list) =
+  TaskList <$> B.handleListEventVi B.handleListEvent event list
+
+sortTaskList :: TaskList n -> TaskList n
+sortTaskList (TaskList list) =
+  let tasks = V.toList $ B.listElements list
+      sortedTasks = sortBy (compareTasks `on` toTask) tasks
+      newVector = V.fromList sortedTasks
+  in  TaskList $ B.listReplace newVector Nothing list
+
+selectedTask :: TaskList n -> Maybe Task
+selectedTask (TaskList list) = toTask . snd <$> B.listSelectedElement list
+
+appendTask' :: Task -> B.List n LTask -> B.List n LTask
+appendTask' task list =
+  let size = listSize list
+      lt = lTask task
+  in  focusOnLastTask $ B.listInsert size lt list
+
+appendTask :: Task -> TaskList n -> TaskList n
+appendTask task (TaskList list) = TaskList $ appendTask' task list
+
+replaceTask :: Task -> TaskList n -> TaskList n
+replaceTask task (TaskList list) = TaskList $ B.listModify replace list
+  where
+    replace :: LTask -> LTask
+    replace = modifyLTask (const task)
+
+deleteTask :: TaskList n -> TaskList n
+deleteTask tl@(TaskList list) =
+  case listSize list of
+    0 -> tl
+    n -> TaskList $ B.listRemove (n-1) list
+
+{- helper functions -}
+
+listSize :: B.List n e -> Int
+listSize list = V.length $ B.listElements list
+
+focusOnLastTask :: B.List n e -> B.List n e
+focusOnLastTask list = B.listMoveTo (listSize list - 1) list

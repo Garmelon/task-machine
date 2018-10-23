@@ -22,6 +22,7 @@ import qualified Graphics.Vty            as VTY
 import           TaskMachine.Options
 import           TaskMachine.UI.Popup
 import           TaskMachine.UI.Task
+import           TaskMachine.UI.TaskEdit
 import           TaskMachine.UI.TaskList
 
 -- | Resource names
@@ -36,7 +37,7 @@ data UIState = UIState
   { options    :: Options -- includes todo file and other config
   , errorPopup :: Maybe (Popup RName (UIState -> NewState))
   , tasks      :: TaskList RName
-  , taskEdit   :: Maybe (B.Editor String RName)
+  , editor     :: Maybe (TaskEdit RName)
   }
 
 type NewState = B.EventM RName (B.Next UIState)
