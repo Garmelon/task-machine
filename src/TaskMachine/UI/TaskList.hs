@@ -9,6 +9,7 @@ module TaskMachine.UI.TaskList
   , appendTask
   , replaceTask
   , deleteTask
+  , modifyAllTasks
   ) where
 
 import           Data.Function
@@ -58,10 +59,11 @@ updateTaskList event (TaskList list) =
 
 sortTaskList :: TaskList n -> TaskList n
 sortTaskList (TaskList list) =
-  let tasks = V.toList $ B.listElements list
+  let index = B.listSelected list
+      tasks = V.toList $ B.listElements list
       sortedTasks = sortBy (compareTasks `on` toTask) tasks
       newVector = V.fromList sortedTasks
-  in  TaskList $ B.listReplace newVector Nothing list
+  in  TaskList $ B.listReplace newVector index list
 
 selectedTask :: TaskList n -> Maybe Task
 selectedTask (TaskList list) = toTask . snd <$> B.listSelectedElement list
@@ -88,6 +90,13 @@ deleteTask tl@(TaskList list) =
     Just index
       | index == 0 -> TaskList $ B.listRemove index list
       | otherwise  -> TaskList $ B.listMoveBy 1 $ B.listRemove index list
+
+modifyAllTasks :: (Task -> Task) -> TaskList n -> TaskList n
+modifyAllTasks f (TaskList list) =
+  let index = B.listSelected list
+      vector = B.listElements list
+      vector' = V.map (modifyLTask f) vector
+  in  TaskList $ B.listReplace vector' index list
 
 {- helper functions -}
 

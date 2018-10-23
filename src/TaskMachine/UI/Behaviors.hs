@@ -14,6 +14,7 @@ module TaskMachine.UI.Behaviors
   , actionDelete
   , actionEditNew
   , actionEditSelected
+  , actionToggleCompletion
   , actionSortTasks
   , actionFinishEdit
   ) where
@@ -136,11 +137,29 @@ actionToggleCompletion s =
 actionSortTasks :: Action
 actionSortTasks s = pure s{tasks=sortTaskList (tasks s)}
 
+-- cleaning up tasks
+
+cleanUpTask :: Day -> Task -> Task
+cleanUpTask today (Task (Complete Nothing) p d Nothing desc) =
+  Task (Complete (Just today)) p d (Just today) desc
+cleanUpTask today (Task (Complete Nothing) p d c desc) =
+  Task (Complete (Just today)) p d c desc
+cleanUpTask today (Task c p d Nothing desc) =
+  Task c p d (Just today) desc
+cleanUpTask _ t = t
+
+actionCleanUp :: Action
+actionCleanUp s = do
+  today <- liftIO getCurrentDay
+  let tasks' = modifyAllTasks (cleanUpTask today) (tasks s)
+  pure s{tasks=tasks'}
+
 -- combining all of the above...
 
 taskListBehavior :: Behavior
 -- Clean up: Add todays date where creation/completion date is missing
---taskListBehavior s (VTY.EvKey (VTY.KChar 'c') []) = undefined s
+taskListBehavior s (VTY.EvKey (VTY.KChar 'c') []) =
+  actionCleanUp >=> actionSave >=> B.continue $ s
 -- Delete currently selected task (implicit save)
 taskListBehavior s (VTY.EvKey (VTY.KChar 'd') []) =
   actionDelete >=> actionSave >=> B.continue $ s
