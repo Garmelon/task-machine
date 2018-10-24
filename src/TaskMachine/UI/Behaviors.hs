@@ -1,6 +1,5 @@
 module TaskMachine.UI.Behaviors
   ( Behavior
-  --, emptyBehavior
   -- * Miscellaneous
   , getCurrentDay
   , closeModifier
@@ -22,12 +21,9 @@ module TaskMachine.UI.Behaviors
 import           Control.Monad
 
 import qualified Brick                   as B
---import qualified Brick.Widgets.Edit      as B
 import           Control.Monad.Trans
---import qualified Data.Text.Zipper        as T
-import qualified Graphics.Vty            as VTY
---import           Text.Megaparsec
 import           Data.Time
+import qualified Graphics.Vty            as VTY
 
 import           TaskMachine.LTask
 import           TaskMachine.Options
@@ -217,20 +213,3 @@ taskEditBehavior edit s (VTY.EvKey VTY.KEnter []) =
 taskEditBehavior edit s e = do
   newEdit <- updateTaskEdit e edit
   B.continue s{editor=Just newEdit}
-
-{-
--- Reload while running
-taskListBehavior s (VTY.EvKey (VTY.KChar 'r') []) = actionLoad s
--- Mark/unmark a task as completed
-taskListBehavior s (VTY.EvKey (VTY.KChar 'x') []) = undefined s
--- Delete tasks
-taskListBehavior s (VTY.EvKey (VTY.KChar 'd') []) = undefined s
--- Delete tasks
-taskListBehavior s (VTY.EvKey (VTY.KChar 'd') []) = undefined s
--- Start editing a new task
-taskListBehavior s (VTY.EvKey (VTY.KChar 'e') []) = B.continue (startEdit s)
--- Update the task list (scroll etc.)
-taskListBehavior s e = do
-  newTasks <- updateTaskList e (tasks s)
-  B.continue s{tasks=newTasks}
--}
