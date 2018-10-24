@@ -8,13 +8,14 @@ module TaskMachine.UI.TaskEdit
   , updateTaskEdit
   ) where
 
-import qualified Brick              as B
-import qualified Brick.Widgets.Edit as B
-import qualified Data.Text.Zipper   as T
-import qualified Graphics.Vty       as VTY
+import qualified Brick               as B
+import qualified Brick.Widgets.Edit  as B
+import qualified Data.Text.Zipper    as T
+import qualified Graphics.Vty        as VTY
 import           Text.Megaparsec
 
 import           TaskMachine.Task
+import           TaskMachine.UI.Task
 
 data TaskEdit n = TaskEdit EditState (B.Editor String n)
   deriving (Show)
@@ -47,8 +48,14 @@ editedTask te = do
     Left parseError -> Left $ parseErrorPretty parseError
     Right task      -> Right task
 
+renderRow :: String -> B.Widget n
+renderRow s =
+  case parse pTask "" s of
+    Left _     -> B.str s
+    Right task -> renderTask task
+
 renderRows :: [String] -> B.Widget n
-renderRows = B.vBox . map B.str
+renderRows = B.vBox . map renderRow
 
 renderTaskEdit :: (Ord n, Show n) => Bool -> TaskEdit n -> B.Widget n
 renderTaskEdit focus (TaskEdit _ edit) = B.renderEditor renderRows focus edit

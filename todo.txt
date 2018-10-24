@@ -1,7 +1,7 @@
 x2018-10-23 c2018-09-18 Clean up file (adding creation/completion dates)
 - c2018-09-18 Purge - move completed tasks to a separate file
 x2018-10-23 c2018-09-28 Move cursor to beginning of task description when editing tasks
-- c2018-09-28 Syntax highlighting while editing tasks
+x2018-10-24 c2018-09-28 Syntax highlighting while editing tasks
 x2018-10-23 c2018-09-30 Display "-empty-" when TaskList is empty
 x2018-09-27 c2018-09-18 Quit using Esc or q
 x2018-09-29 c2018-09-28 Use B.EventM's MonadIO instance instead of B.suspendAndResume (facepalm)
@@ -11,5 +11,5 @@ x2018-09-30 c2018-09-18 Offer "retry" or "quit" +dialogue - syntax error in todo
 x2018-09-30 c2018-09-30 Custom exception messages
 x2018-10-24 c2018-10-23 Don't crash on parse errors etc.
 - c2018-10-24 Add "u" - undo and "z" - redo buttons
-- c2018-10-24 Redo coloring - maybe black-on-white color scheme in-editor?
+- c2018-10-24 Fix date coloring in editor
 x2018-10-24 c2018-10-24 Reverse ordering of completed tasks - most recent at the top
