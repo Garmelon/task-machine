@@ -113,7 +113,7 @@ actionEditNew s = do
 actionEditSelected :: Action
 actionEditSelected s =
   case selectedTask (tasks s) of
-    Nothing -> error "no task selected" -- TODO: Add popup notification
+    Nothing -> pure s
     Just t  ->
       let edit = taskEdit RTaskEdit t ExistingTask
       in pure s{editor=Just edit}
@@ -194,7 +194,12 @@ actionFinishEdit t = pure . finishEdit t
 finishEdit :: TaskEdit RName -> UIState -> UIState
 finishEdit edit s =
   case editedTask edit of
-    Left e     -> error e -- TODO: Error popup
+    Left e     ->
+      let p = popup "Syntax error" e
+                [ ("Continue editing", B.continue)
+                , ("Abort", \s' -> B.continue s'{editor=Nothing})
+                ]
+      in  s{errorPopup=Just p}
     Right task -> s{tasks=modify task, editor=Nothing}
   where
     modify :: Task -> TaskList RName
