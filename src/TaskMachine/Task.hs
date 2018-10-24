@@ -333,19 +333,26 @@ emptyTask = Task Incomplete Nothing Nothing Nothing []
 newTask :: Day -> Task
 newTask day = Task Incomplete Nothing Nothing (Just day) []
 
+-- Inverted compare for Maybes: Nothing comes after Just
+compareMaybe :: Ord a => Maybe a -> Maybe a -> Ordering
+compareMaybe Nothing  Nothing  = EQ
+compareMaybe (Just _) Nothing  = LT
+compareMaybe Nothing  (Just _) = GT
+compareMaybe (Just x) (Just y) = compare x y
+
+compareDescription :: Description -> Description -> Ordering
+compareDescription = compare `on` formatDescription
+
 compareTasks :: Task -> Task -> Ordering
+compareTasks a@(Task (Complete _) _ _ _ _) b@(Task (Complete _) _ _ _ _) = mconcat
+  [ compare (taskCompletion b) (taskCompletion a)
+  , compareMaybe (taskPriority a) (taskPriority b)
+  , compareMaybe (taskDue a) (taskDue b)
+  , compareDescription (taskDescription a) (taskDescription b)
+  ]
 compareTasks a b = mconcat
   [ compare (taskCompletion a) (taskCompletion b)
   , compareMaybe (taskPriority a) (taskPriority b)
   , compareMaybe (taskDue a) (taskDue b)
   , compareDescription (taskDescription a) (taskDescription b)
   ]
-  where
-    -- Inverted compare for Maybes: Nothing comes after Just
-    compareMaybe :: Ord a => Maybe a -> Maybe a -> Ordering
-    compareMaybe Nothing  Nothing  = EQ
-    compareMaybe (Just _) Nothing  = LT
-    compareMaybe Nothing  (Just _) = GT
-    compareMaybe (Just x) (Just y) = compare x y
-    compareDescription :: Description -> Description -> Ordering
-    compareDescription = compare `on` formatDescription
