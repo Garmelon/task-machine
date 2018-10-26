@@ -10,6 +10,14 @@ x2018-09-30 c2018-09-18 Offer "retry" or "quit" +dialogue - couldn't save to tod
 x2018-09-30 c2018-09-18 Offer "retry" or "quit" +dialogue - syntax error in todo file
 x2018-09-30 c2018-09-30 Custom exception messages
 x2018-10-24 c2018-10-23 Don't crash on parse errors etc.
-- c2018-10-24 Add "u" - undo and "z" - redo buttons
 - c2018-10-24 Fix date coloring in editor
 x2018-10-24 c2018-10-24 Reverse ordering of completed tasks - most recent at the top
+- c2018-10-24 F1 - list keybindings
+- c2018-10-26 Add Z - undo (also Ctrl + Z)
+- c2018-10-26 Add Y - redo (also Ctrl + Y)
+- c2018-10-26 Implement date expressions using GADTs
+- c2018-10-26 Move C - cleanup to F - fixup
+- c2018-10-26 Add "starting" task type (start date, prio, due date, description)
+- c2018-10-26 Add "formula" task type (formula, prio, due date, description) - maybe due date formula?
+- (D) c2018-10-26 Fix crash on attempting to open a folder
+- c2018-10-26 Think of something to do with +project tags, @context tags and key:value tags
