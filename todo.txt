@@ -19,5 +19,5 @@ x2018-10-24 c2018-10-24 Reverse ordering of completed tasks - most recent at the
 - c2018-10-26 Move C - cleanup to F - fixup
 - c2018-10-26 Add "starting" task type (start date, prio, due date, description)
 - c2018-10-26 Add "formula" task type (formula, prio, due date, description) - maybe due date formula?
-- (D) c2018-10-26 Fix crash on attempting to open a folder
+x2018-11-01 (D) c2018-10-26 Fix crash on attempting to open a folder
 - c2018-10-26 Think of something to do with +project tags, @context tags and key:value tags

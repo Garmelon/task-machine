@@ -66,9 +66,7 @@ data ErrorAction
 loadErrorMessage :: IOError -> Maybe ErrorAction
 loadErrorMessage e
   | isDoesNotExistError e = Just IgnoreError
-  | isIllegalOperation e  = Just $ ErrorMessage $ "Could not open file:\n" ++ show e
-  | isPermissionError e   = Just $ ErrorMessage "Could not open file: Permission denied"
-  | otherwise             = Nothing
+  | otherwise             = Just $ ErrorMessage $ show e
 
 loadLTasks :: FilePath -> IO (Either String (V.Vector LTask))
 loadLTasks file = do
@@ -78,18 +76,11 @@ loadLTasks file = do
     Left (ErrorMessage msg) -> pure $ Left msg
     Right (Left parseError) -> pure $ Left $ parseErrorPretty parseError
     Right (Right taskList)  -> pure $ Right $ V.fromList $ fromTasks taskList
-    --Left parseError -> pure $ Left $ parseErrorPretty parseError
-    --Right taskList  -> pure $ Right $ V.fromList $ fromTasks taskList
 
 {- Saving -}
 
 saveErrorMessage :: IOError -> Maybe String
-saveErrorMessage e
-  | isAlreadyInUseError e = Just "Could not save to file: File already in use"
-  | isFullError e         = Just "Could not save to file: Disk full"
-  | isIllegalOperation e  = Just $ "Could not save to file:\n" ++ show e
-  | isPermissionError e   = Just "Could not save to file: Permission denied"
-  | otherwise             = Nothing
+saveErrorMessage e = Just $ show e
 
 saveLTasks :: FilePath -> V.Vector LTask -> IO (Either String ())
 saveLTasks file ltasks = do
