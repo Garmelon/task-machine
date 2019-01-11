@@ -1,0 +1,24 @@
+normal task
+  - | x(completion date)
+  (priority)
+  (due date)
+  (creation date)
+  description
+
+delayed task
+  (start date)
+  (priority)
+  (due date)
+  (creation date)
+  description
+
+  on update:
+    if after start date:
+      turn into normal task
+
+formula task
+  (when formula)
+  (priority)
+  (due date)
+
+"update":

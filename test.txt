@@ -1,0 +1,7 @@
+- A simple task
+x A simple completed task
+
+- c2018-12-13 A simple task with creation date
+
+s2018-12-20 d2018-12-24 A task with start date
+-2018-12-20 d2018-12-24 A task with alternate start date
